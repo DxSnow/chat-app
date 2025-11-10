@@ -1,0 +1,127 @@
+import { makeAutoObservable } from 'mobx';
+import config from '../config';
+
+export interface Message {
+  id: string;
+  content: string;
+  sender: string;
+  timestamp: Date;
+  isSelf: boolean;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
+class ChatStore {
+  messages: Message[] = [];
+  currentUser: User = {
+    id: 'user-1',
+    name: '',
+  };
+  isConnected: boolean = false;
+  ws: WebSocket | null = null;
+
+  constructor() {
+    makeAutoObservable(this);
+    // Load nickname from localStorage on initialization
+    this.loadNickname();
+  }
+
+  loadNickname() {
+    const savedNickname = localStorage.getItem('chatNickname');
+    if (savedNickname) {
+      this.currentUser.name = savedNickname;
+    }
+  }
+
+  setNickname(nickname: string) {
+    this.currentUser.name = nickname;
+    localStorage.setItem('chatNickname', nickname);
+  }
+
+  hasNickname(): boolean {
+    return this.currentUser.name.trim().length > 0;
+  }
+
+  connectWebSocket(url: string) {
+    try {
+      this.ws = new WebSocket(url);
+
+      this.ws.onopen = () => {
+        this.isConnected = true;
+        console.log('WebSocket connected');
+      };
+
+      this.ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        this.addMessage(data);
+      };
+
+      this.ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+      this.ws.onclose = () => {
+        this.isConnected = false;
+        console.log('WebSocket disconnected');
+      };
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error);
+    }
+  }
+
+  sendMessage(content: string) {
+    if (!this.ws || !this.isConnected) {
+      console.error('WebSocket is not connected');
+      return;
+    }
+
+    const message: Message = {
+      id: `msg-${Date.now()}`,
+      content,
+      sender: this.currentUser.name,
+      timestamp: new Date(),
+      isSelf: true,
+    };
+
+    this.ws.send(JSON.stringify(message));
+    this.addMessage(message);
+  }
+
+  addMessage(message: Message) {
+    this.messages.push(message);
+  }
+
+  setMessages(messages: Message[]) {
+    this.messages = messages;
+  }
+
+  async loadHistoryMessages() {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/messages`);
+      if (response.ok) {
+        const messages = await response.json();
+        // Update isSelf flag based on current user's nickname
+        const updatedMessages = messages.map((msg: Message) => ({
+          ...msg,
+          isSelf: msg.sender === this.currentUser.name,
+        }));
+        this.setMessages(updatedMessages);
+      }
+    } catch (error) {
+      console.error('Failed to load history messages:', error);
+    }
+  }
+
+  disconnectWebSocket() {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+}
+
+export const chatStore = new ChatStore();
