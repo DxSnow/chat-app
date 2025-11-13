@@ -19,13 +19,14 @@ This document provides a comprehensive analysis of our real-time chat applicatio
 ## Table of Contents
 
 1. [System Architecture](#system-architecture)
-2. [Technology Stack Rationale](#technology-stack-rationale)
-3. [Deployment Architecture](#deployment-architecture)
-4. [Implementation Challenges and Solutions](#implementation-challenges-and-solutions)
-5. [Security Considerations](#security-considerations)
-6. [Performance and Scalability](#performance-and-scalability)
-7. [Lessons Learned](#lessons-learned)
-8. [Future Improvements](#future-improvements)
+2. [Application Features](#application-features)
+3. [Technology Stack Rationale](#technology-stack-rationale)
+4. [Deployment Architecture](#deployment-architecture)
+5. [Implementation Challenges and Solutions](#implementation-challenges-and-solutions)
+6. [Security Considerations](#security-considerations)
+7. [Performance and Scalability](#performance-and-scalability)
+8. [Lessons Learned](#lessons-learned)
+9. [Future Improvements](#future-improvements)
 
 ---
 
@@ -82,7 +83,8 @@ This document provides a comprehensive analysis of our real-time chat applicatio
 - React 19 with TypeScript for type safety and modern features
 - MobX for reactive state management
 - WebSocket client for real-time communication
-- localStorage for nickname persistence
+- localStorage for nickname and color preferences persistence
+- Custom color picker with dual visibility modes (local/shared)
 
 **Backend (Server)**:
 - Koa.js web framework for lightweight HTTP handling
@@ -95,6 +97,72 @@ This document provides a comprehensive analysis of our real-time chat applicatio
 - Nginx as reverse proxy and static file server
 - Let's Encrypt for free SSL certificates
 - DuckDNS for free domain name
+
+---
+
+## Application Features
+
+### Core Functionality
+
+**1. Real-Time Messaging**
+- Bidirectional WebSocket communication for instant message delivery
+- Automatic connection status indicator (Connected/Disconnected)
+- Message history persistence via MongoDB
+- Auto-scroll to latest messages
+
+**2. User Identity System**
+- Nickname selection and persistence (localStorage)
+- Unique sender identification for each message
+- Distinction between self and other users' messages
+
+**3. Custom Message Color Picker**
+
+The application features a sophisticated color customization system allowing users to personalize their message bubble colors:
+
+**Activation**: Double-click any of your own messages to open the color picker
+
+**Color Selection Options**:
+- 8 preset colors: Blue (default), Red, Green, Amber, Purple, Pink, Cyan, Orange
+- Custom color picker for unlimited color choices
+- Live preview showing how messages will appear
+
+**Dual Visibility Modes**:
+
+*"Share with everyone" mode (Default)*:
+- Color is broadcast to all users via WebSocket
+- Color is stored in MongoDB with the message
+- Other users see your chosen color
+- Past messages keep their original colors (immutable)
+- Only NEW messages sent after color change use the new color
+- **Cloud-efficient**: Minimal storage overhead (~7 bytes per message)
+
+*"Only me" mode*:
+- Color visible only to you, not shared with others
+- Color NOT sent via WebSocket or stored in database
+- All your messages (past, current, future) display in your chosen color
+- Color changes update ALL your messages instantly via MobX reactivity
+- Other users see your messages in their default color
+- **Browser-efficient**: Uses reactive rendering, no database storage
+
+**Responsive Design**:
+- Desktop: Picker appears next to the clicked message with smart positioning
+- Mobile/Tablet: Picker centered on screen with backdrop overlay
+- Touch-optimized buttons (larger on mobile)
+- Automatic viewport boundary detection prevents off-screen rendering
+
+**Technical Implementation**:
+- MobX reactive state management for real-time color updates
+- localStorage persistence for color preferences across sessions
+- Conditional WebSocket broadcasting based on visibility mode
+- Smart positioning algorithm accounting for screen edges and picker dimensions
+
+**Resource Optimization**:
+The dual-mode system is designed for optimal cloud resource usage:
+- Default "shared" mode encourages color storage, reducing client-side rendering
+- "Only me" mode offloads processing to client browser
+- Database impact: +7 bytes per message (hex color string)
+- Network impact: +7 bytes per WebSocket message in shared mode
+- Zero cloud overhead in local mode
 
 ---
 

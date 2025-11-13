@@ -115,8 +115,13 @@ class ChatStore {
     };
 
     this.ws.send(JSON.stringify(message));
-    // Always apply color locally (either from shared mode or local override)
-    this.addMessage({ ...message, color: this.currentColor });
+    // In local mode, don't store color on message (use currentColor reactively)
+    // In shared mode, store the color on the message (immutable)
+    if (this.colorSharingMode === 'shared') {
+      this.addMessage({ ...message, color: this.currentColor });
+    } else {
+      this.addMessage(message); // No color property for local mode
+    }
   }
 
   addMessage(message: Message) {
