@@ -1,30 +1,32 @@
-# 测试应用指南
+# Application Testing Guide
 
-## 🔧 刚才修复的问题
+[中文文档](./TEST_INSTRUCTIONS.zh.md)
 
-修复了在没有 MongoDB 连接时 API 会报错的问题。现在即使不配置数据库,API 也能正常工作。
+## 🔧 Recently Fixed Issues
+
+Fixed API errors when no MongoDB connection is configured. Now the API works properly even without database configuration.
 
 ---
 
-## 🔄 重启后端服务器
+## 🔄 Restart Backend Server
 
-**在后端终端(运行着 `npm start` 的那个):**
+**In the backend terminal (the one running `npm start`):**
 
-1. 按 `Ctrl + C` 停止服务器
-2. 重新启动:
+1. Press `Ctrl + C` to stop the server
+2. Restart:
    ```bash
    npm start
    ```
 
-**前端不需要重启**,保持运行即可。
+**Frontend does not need restart**, keep it running.
 
 ---
 
-## ✅ 测试步骤
+## ✅ Testing Steps
 
-### 1. 检查服务状态
+### 1. Check Service Status
 
-**后端终端应该显示:**
+**Backend terminal should show:**
 
 ```
 Server running on http://localhost:3001
@@ -32,177 +34,177 @@ WebSocket server running on ws://localhost:3001
 No MONGODB_URI found. Running in memory-only mode.
 ```
 
-**前端终端应该显示:**
+**Frontend terminal should show:**
 
 ```
 VITE v7.x.x  ready in xxx ms
 ➜  Local:   http://localhost:5173/
 ```
 
-### 2. 打开浏览器
+### 2. Open Browser
 
-访问: **http://localhost:5173/**
+Visit: **http://localhost:5173/**
 
-你应该看到:
+You should see:
 
-- ✅ 聊天界面
-- ✅ 顶部显示 "Chat"
-- ✅ 右上角显示连接状态(绿点 = Connected)
-- ✅ 底部有输入框和发送按钮
+- ✅ Chat interface
+- ✅ "Chat" displayed at top
+- ✅ Connection status in top-right corner (green dot = Connected)
+- ✅ Input box and send button at bottom
 
-### 3. 测试单窗口聊天
+### 3. Test Single Window Chat
 
-在输入框输入消息,点击"Send"或按回车:
+Type a message in the input box, click "Send" or press Enter:
 
-- ✅ 消息显示在右侧(蓝色气泡)
-- ✅ 显示发送时间
-- ✅ 自动滚动到最新消息
+- ✅ Message displays on the right (blue bubble)
+- ✅ Shows send time
+- ✅ Auto-scrolls to latest message
 
-### 4. 测试多窗口实时聊天
+### 4. Test Multi-Window Real-time Chat
 
-**打开第二个浏览器窗口/标签:**
+**Open a second browser window/tab:**
 
-1. 访问 http://localhost:5173/
-2. 在第一个窗口发送消息
-3. 第二个窗口应该**实时收到**消息(左侧,白色气泡)
-4. 在第二个窗口回复
-5. 第一个窗口应该实时收到
+1. Visit http://localhost:5173/
+2. Send a message in the first window
+3. Second window should **receive the message in real-time** (left side, white bubble)
+4. Reply in the second window
+5. First window should receive it in real-time
 
-### 5. 测试连接状态
+### 5. Test Connection Status
 
-1. 停止后端服务器(Ctrl+C)
-2. 浏览器右上角应该变成红点 "Disconnected"
-3. 重启后端服务器
-4. 应该自动重连,变回绿点 "Connected"
+1. Stop the backend server (Ctrl+C)
+2. Browser top-right corner should change to red dot "Disconnected"
+3. Restart the backend server
+4. Should auto-reconnect, change back to green dot "Connected"
 
-### 6. 测试刷新页面
+### 6. Test Page Refresh
 
-**不配置 MongoDB 时:**
+**Without MongoDB configured:**
 
-- 刷新页面,消息会消失(内存模式)
+- Refresh page, messages disappear (memory mode)
 
-**配置 MongoDB 后:**
+**After configuring MongoDB:**
 
-- 刷新页面,消息保留
-- 历史消息自动加载
-
----
-
-## 📱 测试响应式设计
-
-### 桌面视图
-
-- 消息宽度最大 60%
-- 输入框和按钮并排
-
-### 调整浏览器窗口大小(模拟手机)
-
-1. 按 `Command + Option + I` 打开开发者工具
-2. 点击设备模拟图标(手机图标)
-3. 选择 iPhone 或其他设备
-4. 检查:
-   - ✅ 消息宽度最大 70%
-   - ✅ 界面自适应
-   - ✅ 触摸友好
+- Refresh page, messages persist
+- Message history loads automatically
 
 ---
 
-## 🎯 预期结果
+## 📱 Test Responsive Design
 
-### ✅ 应该工作的功能
+### Desktop View
 
-- [x] 发送消息
-- [x] 接收消息
-- [x] 实时通信
-- [x] 连接状态显示
-- [x] 消息时间戳
-- [x] 自动滚动
-- [x] 响应式设计
-- [x] API 不报错(即使没有 MongoDB)
+- Message width max 60%
+- Input box and button side by side
 
-### ℹ️ 内存模式限制
+### Resize Browser Window (simulate mobile)
 
-- [ ] 重启后端,消息丢失
-- [ ] 刷新页面,消息丢失
-
-要解决这个,需要配置 MongoDB(见下方)
+1. Press `Command + Option + I` to open developer tools
+2. Click device emulation icon (phone icon)
+3. Select iPhone or other device
+4. Check:
+   - ✅ Message width max 70%
+   - ✅ Interface adapts
+   - ✅ Touch-friendly
 
 ---
 
-## 🔧 常见问题
+## 🎯 Expected Results
 
-### 问题: 连接状态一直是红色
+### ✅ Features That Should Work
 
-**检查:**
+- [x] Send messages
+- [x] Receive messages
+- [x] Real-time communication
+- [x] Connection status display
+- [x] Message timestamps
+- [x] Auto-scroll
+- [x] Responsive design
+- [x] API doesn't error (even without MongoDB)
+
+### ℹ️ Memory Mode Limitations
+
+- [ ] Restart backend, messages lost
+- [ ] Refresh page, messages lost
+
+To solve this, need to configure MongoDB (see below)
+
+---
+
+## 🔧 Common Issues
+
+### Issue: Connection status always red
+
+**Check:**
 
 ```bash
-# 后端是否在运行?
+# Is backend running?
 lsof -ti:3001
 
-# 浏览器控制台有什么错误?
-# 按 F12 查看
+# Any errors in browser console?
+# Press F12 to check
 ```
 
-### 问题: 消息发不出去
+### Issue: Can't send messages
 
-**检查:**
+**Check:**
 
-1. 连接状态是否为绿色
-2. 浏览器控制台(F12)是否有错误
-3. 后端终端是否有错误日志
+1. Is connection status green?
+2. Any errors in browser console (F12)?
+3. Any error logs in backend terminal?
 
-### 问题: 第二个窗口收不到消息
+### Issue: Second window doesn't receive messages
 
-**检查:**
+**Check:**
 
-1. 两个窗口的连接状态都是绿色吗?
-2. 后端终端显示 "New client connected" 了吗?
+1. Are both windows' connection status green?
+2. Does backend terminal show "New client connected"?
 
 ---
 
-## 🗄️ 可选: 配置 MongoDB(持久化存储)
+## 🗄️ Optional: Configure MongoDB (Persistent Storage)
 
-如果想让消息在重启后保留:
+If you want messages to persist after restart:
 
-1. 访问 https://www.mongodb.com/cloud/atlas
-2. 创建免费集群
-3. 获取连接字符串
-4. 编辑 `server/.env`:
+1. Visit https://www.mongodb.com/cloud/atlas
+2. Create free cluster
+3. Get connection string
+4. Edit `server/.env`:
    ```
-   MONGODB_URI=你的连接字符串
+   MONGODB_URI=your-connection-string
    ```
-5. 重启后端服务器
+5. Restart backend server
 
 ---
 
-## 📊 测试检查清单
+## 📊 Testing Checklist
 
-完成这些测试,确认应用正常工作:
+Complete these tests to confirm the application works properly:
 
-- [ ] 后端服务器启动成功
-- [ ] 前端应用启动成功
-- [ ] 浏览器能访问 http://localhost:5173/
-- [ ] 显示聊天界面
-- [ ] 连接状态显示绿色
-- [ ] 能发送消息
-- [ ] 消息显示在右侧(蓝色)
-- [ ] 打开第二个窗口
-- [ ] 第二个窗口能实时收到消息(左侧白色)
-- [ ] 两个窗口可以互相聊天
-- [ ] 响应式设计工作正常
-- [ ] 没有控制台错误
+- [ ] Backend server starts successfully
+- [ ] Frontend application starts successfully
+- [ ] Browser can access http://localhost:5173/
+- [ ] Chat interface displays
+- [ ] Connection status shows green
+- [ ] Can send messages
+- [ ] Messages display on right (blue)
+- [ ] Open second window
+- [ ] Second window receives messages in real-time (left white)
+- [ ] Two windows can chat with each other
+- [ ] Responsive design works properly
+- [ ] No console errors
 
 ---
 
-## 🎉 测试通过后
+## 🎉 After Tests Pass
 
-恭喜!你的聊天应用已经完全可用了!
+Congratulations! Your chat application is fully functional!
 
-**下一步可以:**
+**Next steps:**
 
-- 配置 MongoDB 实现消息持久化
-- 自定义界面样式
-- 添加用户认证
-- 部署到生产环境
+- Configure MongoDB for message persistence
+- Customize interface styles
+- Add user authentication
+- Deploy to production environment
 
-享受你的应用吧! 🚀
+Enjoy your application! 🚀

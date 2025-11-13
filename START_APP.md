@@ -1,26 +1,28 @@
-# 启动应用指南
+# Application Startup Guide
 
-## ✅ Node.js 升级完成!
+[中文文档](./START_APP.zh.md)
 
-你现在使用的是 **Node.js v20.19.5** 和 **npm v10.8.2**
+## ✅ Node.js Upgrade Complete!
 
-所有依赖已重新安装,没有任何警告!
+You are now using **Node.js v20.19.5** and **npm v10.8.2**
+
+All dependencies have been reinstalled with no warnings!
 
 ---
 
-## 🚀 如何启动应用
+## 🚀 How to Start the Application
 
-### 重要提示
-每次打开新的终端窗口时,需要先激活 nvm 以使用 Node.js 20:
+### Important Note
+Each time you open a new terminal window, you need to activate nvm to use Node.js 20:
 
 ```bash
-# 自动激活(添加到你的 ~/.zshrc 文件中,只需要做一次)
+# Auto-activate (add to your ~/.zshrc file, only needed once)
 echo 'export NVM_DIR="$HOME/.nvm"' >> ~/.zshrc
 echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-或者每次手动激活:
+Or manually activate each time:
 
 ```bash
 export NVM_DIR="$HOME/.nvm"
@@ -29,32 +31,32 @@ export NVM_DIR="$HOME/.nvm"
 
 ---
 
-## 启动步骤
+## Startup Steps
 
-### 终端 1 - 启动后端服务器
+### Terminal 1 - Start Backend Server
 
 ```bash
-cd /Users/xuedong/code/chat-website/server
+cd /Users/xuedong/code/chat-app/server
 npm start
 ```
 
-你应该看到:
+You should see:
 ```
 Server running on http://localhost:3001
 WebSocket server running on ws://localhost:3001
 No MONGODB_URI found. Running in memory-only mode.
 ```
 
-### 终端 2 - 启动前端应用
+### Terminal 2 - Start Frontend Application
 
-打开新的终端窗口:
+Open a new terminal window:
 
 ```bash
-cd /Users/xuedong/code/chat-website/client
+cd /Users/xuedong/code/chat-app/client
 npm run dev
 ```
 
-你应该看到:
+You should see:
 ```
 VITE v7.x.x  ready in xxx ms
 
@@ -62,32 +64,32 @@ VITE v7.x.x  ready in xxx ms
 ➜  Network: use --host to expose
 ```
 
-### 打开浏览器
+### Open Browser
 
-访问: **http://localhost:5173/**
-
----
-
-## 📱 测试聊天功能
-
-1. 打开两个浏览器窗口/标签
-2. 都访问 http://localhost:5173/
-3. 在一个窗口发送消息
-4. 另一个窗口实时接收消息
-5. 刷新页面,消息依然存在(如果配置了 MongoDB)
+Visit: **http://localhost:5173/**
 
 ---
 
-## 🎯 验证 Node.js 版本
+## 📱 Test Chat Features
 
-随时检查当前使用的 Node.js 版本:
+1. Open two browser windows/tabs
+2. Both visit http://localhost:5173/
+3. Send a message in one window
+4. The other window receives the message in real-time
+5. Refresh page, messages persist (if MongoDB is configured)
+
+---
+
+## 🎯 Verify Node.js Version
+
+Check current Node.js version at any time:
 
 ```bash
-node --version  # 应该显示 v20.19.5
-npm --version   # 应该显示 10.8.2
+node --version  # Should show v20.19.5
+npm --version   # Should show 10.8.2
 ```
 
-如果显示的是旧版本(v16.14.0),执行:
+If it shows the old version (v16.14.0), run:
 
 ```bash
 nvm use 20
@@ -95,9 +97,9 @@ nvm use 20
 
 ---
 
-## ⚙️ 一键自动配置 (推荐)
+## ⚙️ One-Click Auto Configuration (Recommended)
 
-运行这个命令,以后每次打开终端都会自动使用 Node.js 20:
+Run this command so that Node.js 20 is automatically used every time you open a terminal:
 
 ```bash
 cat >> ~/.zshrc << 'EOF'
@@ -113,81 +115,81 @@ source ~/.zshrc
 
 ---
 
-## 📦 其他有用命令
+## 📦 Other Useful Commands
 
-### 查看所有已安装的 Node.js 版本
+### View All Installed Node.js Versions
 ```bash
 nvm list
 ```
 
-### 切换到不同版本
+### Switch to Different Version
 ```bash
-nvm use 16  # 切回旧版本
-nvm use 20  # 切回新版本
+nvm use 16  # Switch back to old version
+nvm use 20  # Switch to new version
 ```
 
-### 查看可用的 Node.js 版本
+### View Available Node.js Versions
 ```bash
 nvm ls-remote
 ```
 
-### 安装其他版本
+### Install Other Versions
 ```bash
-nvm install 22  # 安装最新版本
-nvm install 18  # 安装 18 LTS
+nvm install 22  # Install latest version
+nvm install 18  # Install 18 LTS
 ```
 
 ---
 
-## 🐛 故障排除
+## 🐛 Troubleshooting
 
-### 问题: nvm 命令找不到
+### Issue: nvm command not found
 
-**解决:**
+**Solution:**
 ```bash
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 ```
 
-### 问题: 还是显示 Node v16
+### Issue: Still showing Node v16
 
-**解决:**
+**Solution:**
 ```bash
 nvm use 20
 ```
 
-### 问题: 每次都要手动运行 nvm use
+### Issue: Need to run nvm use every time
 
-**解决:** 运行上面的"一键自动配置"命令
+**Solution:** Run the "One-Click Auto Configuration" command above
 
-### 问题: 端口已被占用
+### Issue: Port already in use
 
-**解决:**
+**Solution:**
 ```bash
-# 查找占用 3001 端口的进程
+# Find and kill process using port 3001
 lsof -ti:3001 | xargs kill -9
 
-# 查找占用 5173 端口的进程
+# Find and kill process using port 5173
 lsof -ti:5173 | xargs kill -9
 ```
 
 ---
 
-## ✨ 升级成功的好处
+## ✨ Benefits of the Upgrade
 
-✅ **性能提升** - 比 v16 快 20-30%
-✅ **无警告** - 所有 EBADENGINE 警告消失
-✅ **最新特性** - 支持最新的 JavaScript 功能
-✅ **更好的安全性** - 最新的安全补丁
-✅ **完美兼容** - 与 Vite 7.x 和 Koa 3.x 完美配合
+✅ **Performance Boost** - 20-30% faster than v16
+✅ **No Warnings** - All EBADENGINE warnings gone
+✅ **Latest Features** - Support for latest JavaScript features
+✅ **Better Security** - Latest security patches
+✅ **Perfect Compatibility** - Works perfectly with Vite 7.x and Koa 3.x
 
 ---
 
-## 🎉 开始使用吧!
+## 🎉 Start Using!
 
-现在一切就绪,享受你的聊天应用!
+Everything is ready, enjoy your chat application!
 
-如需帮助,查看:
-- [README.md](./README.md) - 完整文档
-- [QUICK_START.md](./QUICK_START.md) - 快速开始
-- [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) - 项目概览
+For help, check:
+- [README.md](./README.md) - Complete documentation
+- [QUICK_START.md](./QUICK_START.md) - Quick start
+- [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) - Project overview

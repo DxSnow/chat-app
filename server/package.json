@@ -13,11 +13,16 @@
   "license": "ISC",
   "dependencies": {
     "@koa/cors": "^5.0.0",
+    "@koa/multer": "^4.0.0",
     "@koa/router": "^14.0.0",
     "dotenv": "^17.2.3",
     "koa": "^3.1.1",
     "koa-bodyparser": "^4.4.1",
+    "koa-static": "^5.0.0",
     "mongoose": "^8.19.2",
+    "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
+    "sharp": "^0.34.5",
     "ws": "^8.18.3"
   },
   "devDependencies": {

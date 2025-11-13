@@ -8,6 +8,8 @@ export interface Message {
   timestamp: Date;
   isSelf: boolean;
   color?: string; // Message bubble color (hex format)
+  imageUrl?: string; // URL to uploaded image
+  hasImage?: boolean; // Flag indicating if message has an image
 }
 
 export interface User {
@@ -98,7 +100,7 @@ class ChatStore {
     }
   }
 
-  sendMessage(content: string) {
+  sendMessage(content: string, imageUrl?: string) {
     if (!this.ws || !this.isConnected) {
       console.error('WebSocket is not connected');
       return;
@@ -112,6 +114,8 @@ class ChatStore {
       isSelf: true,
       // Include color only if sharing mode is 'shared', otherwise only apply locally
       color: this.colorSharingMode === 'shared' ? this.currentColor : undefined,
+      imageUrl,
+      hasImage: !!imageUrl,
     };
 
     this.ws.send(JSON.stringify(message));
@@ -121,6 +125,39 @@ class ChatStore {
       this.addMessage({ ...message, color: this.currentColor });
     } else {
       this.addMessage(message); // No color property for local mode
+    }
+  }
+
+  async sendImage(file: File) {
+    if (!this.ws || !this.isConnected) {
+      console.error('WebSocket is not connected');
+      throw new Error('Not connected to server');
+    }
+
+    try {
+      // Upload image to server
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch(`${config.apiUrl}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+
+      const data = await response.json();
+
+      // Send message with image URL
+      const fullImageUrl = `${config.apiUrl}${data.imageUrl}`;
+      this.sendMessage('', fullImageUrl);
+
+      return data;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
     }
   }
 

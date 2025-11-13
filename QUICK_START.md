@@ -1,47 +1,49 @@
-# 快速启动指南
+# Quick Start Guide
 
-## 第一次运行
+[中文文档](./QUICK_START.zh.md)
 
-### 1. 安装所有依赖
+## First Time Setup
 
-打开终端,在项目根目录执行:
+### 1. Install All Dependencies
+
+Open terminal and run in project root directory:
 
 ```bash
-# 安装客户端依赖
+# Install client dependencies
 cd client
 npm install
 
-# 安装服务器依赖
+# Install server dependencies
 cd ../server
 npm install
 ```
 
-### 2. 启动后端服务器
+### 2. Start Backend Server
 
-在第一个终端窗口:
+In the first terminal window:
 
 ```bash
 cd server
 npm start
 ```
 
-你应该看到:
+You should see:
 ```
 Server running on http://localhost:3001
 WebSocket server running on ws://localhost:3001
 No MONGODB_URI found. Running in memory-only mode.
 ```
 
-### 3. 启动前端应用
+### 3. Start Frontend Application
 
-打开第二个终端窗口:
+Open a second terminal window:
 
 ```bash
 cd client
 npm run dev
 ```
 
-你应该看到:
+You should see:
 ```
   VITE v7.x.x  ready in xxx ms
 
@@ -49,73 +51,73 @@ npm run dev
   ➜  Network: use --host to expose
 ```
 
-### 4. 打开浏览器
+### 4. Open Browser
 
-访问: http://localhost:5173/
+Visit: http://localhost:5173/
 
-## 测试聊天功能
+## Test Chat Features
 
-1. 打开两个浏览器窗口/标签页
-2. 都访问 http://localhost:5173/
-3. 在一个窗口发送消息
-4. 另一个窗口会实时收到消息
+1. Open two browser windows/tabs
+2. Both visit http://localhost:5173/
+3. Send a message in one window
+4. The other window will receive the message in real-time
 
-## 可选:配置 MongoDB
+## Optional: Configure MongoDB
 
-如果想持久化消息(重启后不丢失):
+If you want to persist messages (not lost after restart):
 
-1. 访问 https://www.mongodb.com/cloud/atlas
-2. 创建免费账户和集群
-3. 获取连接字符串
-4. 在 `server/.env` 文件中添加:
+1. Visit https://www.mongodb.com/cloud/atlas
+2. Create a free account and cluster
+3. Get connection string
+4. Add to `server/.env` file:
    ```
-   MONGODB_URI=你的连接字符串
+   MONGODB_URI=your-connection-string
    ```
-5. 重启服务器
+5. Restart the server
 
-## PWA 功能测试
+## PWA Feature Testing
 
-### 在手机上测试
+### Testing on Mobile
 
-1. 确保手机和电脑在同一 WiFi
-2. 修改 `client/src/App.tsx` 中的 WebSocket URL:
+1. Ensure phone and computer are on the same WiFi
+2. Modify WebSocket URL in `client/src/App.tsx`:
    ```typescript
-   chatStore.connectWebSocket('ws://你的电脑IP:3001');
+   chatStore.connectWebSocket('ws://your-computer-ip:3001');
    ```
-3. 在手机浏览器访问: http://你的电脑IP:5173/
-4. 点击"添加到主屏幕"
+3. Visit on mobile browser: http://your-computer-ip:5173/
+4. Tap "Add to Home Screen"
 
-### 在桌面测试
+### Testing on Desktop
 
-1. Chrome 浏览器访问应用
-2. 地址栏右侧会出现安装图标
-3. 点击安装
+1. Visit the app in Chrome browser
+2. An install icon will appear in the address bar
+3. Click to install
 
-## 常见问题
+## Common Issues
 
-### WebSocket 连接失败?
+### WebSocket Connection Failed?
 
-- 确保后端服务器正在运行(端口 3001)
-- 检查浏览器控制台错误信息
+- Ensure backend server is running (port 3001)
+- Check browser console for error messages
 
-### 页面样式错乱?
+### Page Styles Broken?
 
-- 确保 Tailwind CSS 已正确安装
-- 清除浏览器缓存重试
+- Ensure Tailwind CSS is properly installed
+- Clear browser cache and retry
 
-### 消息没有实时更新?
+### Messages Not Updating in Real-time?
 
-- 检查网络连接
-- 查看浏览器控制台的 WebSocket 状态
-- 确认右上角显示"Connected"(绿点)
+- Check network connection
+- View WebSocket status in browser console
+- Confirm "Connected" (green dot) in top-right corner
 
-## 下一步
+## Next Steps
 
-- 阅读完整 [README.md](./README.md)
-- 自定义聊天界面样式
-- 添加用户认证
-- 部署到生产环境
+- Read complete [README.md](./README.md)
+- Customize chat interface styles
+- Add user authentication
+- Deploy to production environment
 
-## 需要帮助?
+## Need Help?
 
-查看项目 Issues 或创建新的 Issue 提问。
+Check project Issues or create a new Issue to ask questions.

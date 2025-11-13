@@ -1,104 +1,106 @@
-# Node.js 升级指南
+# Node.js Upgrade Guide
 
-你当前的 Node.js 版本是 **v16.14.0**,建议升级到 **v20.x LTS** 或 **v22.x** 以获得最佳性能。
+[中文文档](./UPGRADE_NODEJS.zh.md)
 
-## 方法 1: 使用 nvm (推荐)
+Your current Node.js version is **v16.14.0**, recommend upgrading to **v20.x LTS** or **v22.x** for best performance.
 
-nvm (Node Version Manager) 可以让你轻松管理多个 Node.js 版本。
+## Method 1: Using nvm (Recommended)
 
-### 安装 nvm
+nvm (Node Version Manager) allows you to easily manage multiple Node.js versions.
 
-在终端执行:
+### Install nvm
+
+Run in terminal:
 
 ```bash
-# 下载并安装 nvm
+# Download and install nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 ```
 
-### 配置 shell
+### Configure shell
 
-安装完成后,重新加载配置:
+After installation, reload configuration:
 
 ```bash
-# 如果你使用 bash
+# If you use bash
 source ~/.bashrc
 
-# 如果你使用 zsh (macOS 默认)
+# If you use zsh (macOS default)
 source ~/.zshrc
 ```
 
-或者直接关闭并重新打开终端。
+Or simply close and reopen the terminal.
 
-### 验证安装
+### Verify Installation
 
 ```bash
 nvm --version
-# 应该显示: 0.39.7
+# Should show: 0.39.7
 ```
 
-### 安装 Node.js 20 LTS
+### Install Node.js 20 LTS
 
 ```bash
-# 安装最新的 LTS 版本
+# Install latest LTS version
 nvm install 20
 
-# 设置为默认版本
+# Set as default version
 nvm alias default 20
 
-# 使用这个版本
+# Use this version
 nvm use 20
 ```
 
-### 验证升级
+### Verify Upgrade
 
 ```bash
 node --version
-# 应该显示: v20.x.x
+# Should show: v20.x.x
 
 npm --version
-# 应该显示: 10.x.x
+# Should show: 10.x.x
 ```
 
-### 安装 Node.js 22 (最新版本,可选)
+### Install Node.js 22 (Latest version, optional)
 
 ```bash
-# 安装 Node.js 22
+# Install Node.js 22
 nvm install 22
 
-# 设置为默认
+# Set as default
 nvm alias default 22
 
-# 使用
+# Use
 nvm use 22
 ```
 
 ---
 
-## 方法 2: 使用 Homebrew (如果你已安装 Homebrew)
+## Method 2: Using Homebrew (If you already have Homebrew)
 
-### 检查是否有 Homebrew
+### Check if Homebrew is installed
 
 ```bash
 brew --version
 ```
 
-### 如果有 Homebrew,升级 Node.js
+### If you have Homebrew, upgrade Node.js
 
 ```bash
-# 卸载旧版本
+# Uninstall old version
 brew uninstall node
 
-# 安装最新版本
+# Install latest version
 brew install node@20
 
-# 或安装 Node.js 22
+# Or install Node.js 22
 brew install node
 
-# 链接
+# Link
 brew link node@20 --force --overwrite
 ```
 
-### 验证
+### Verify
 
 ```bash
 node --version
@@ -107,24 +109,24 @@ npm --version
 
 ---
 
-## 方法 3: 从 Node.js 官网下载安装包
+## Method 3: Download installer from Node.js official website
 
-### 下载
+### Download
 
-访问: https://nodejs.org/
+Visit: https://nodejs.org/
 
-选择:
-- **LTS 版本** (推荐): v20.x - 长期支持,稳定
-- **Current 版本**: v22.x - 最新功能
+Choose:
+- **LTS version** (recommended): v20.x - Long-term support, stable
+- **Current version**: v22.x - Latest features
 
-### 安装
+### Install
 
-1. 下载 macOS 安装包 (.pkg)
-2. 双击安装包
-3. 按照安装向导完成安装
-4. 重启终端
+1. Download macOS installer (.pkg)
+2. Double-click the installer
+3. Follow installation wizard to complete
+4. Restart terminal
 
-### 验证
+### Verify
 
 ```bash
 node --version
@@ -133,123 +135,123 @@ npm --version
 
 ---
 
-## 升级后的操作
+## Post-Upgrade Steps
 
-### 1. 重新安装项目依赖
+### 1. Reinstall Project Dependencies
 
-由于 Node.js 版本变化,建议重新安装依赖:
+Due to Node.js version change, recommend reinstalling dependencies:
 
 ```bash
-# 进入前端目录
-cd /Users/xuedong/code/chat-website/client
+# Enter frontend directory
+cd /Users/xuedong/code/chat-app/client
 rm -rf node_modules package-lock.json
 npm install
 
-# 进入后端目录
-cd /Users/xuedong/code/chat-website/server
+# Enter backend directory
+cd /Users/xuedong/code/chat-app/server
 rm -rf node_modules package-lock.json
 npm install
 ```
 
-### 2. 验证项目运行
+### 2. Verify Project Runs
 
-**启动后端:**
+**Start backend:**
 ```bash
-cd /Users/xuedong/code/chat-website/server
+cd /Users/xuedong/code/chat-app/server
 npm start
 ```
 
-**启动前端:**
+**Start frontend:**
 ```bash
-cd /Users/xuedong/code/chat-website/client
+cd /Users/xuedong/code/chat-app/client
 npm run dev
 ```
 
 ---
 
-## 推荐版本
+## Recommended Versions
 
-| 版本 | 说明 | 适用场景 |
-|------|------|----------|
-| **v20.x LTS** | 长期支持版本 | 生产环境,稳定项目 |
-| v22.x | 最新稳定版 | 尝试新功能 |
-| v18.x LTS | 旧的 LTS | 兼容性考虑 |
+| Version | Description | Use Case |
+|---------|-------------|----------|
+| **v20.x LTS** | Long-term support version | Production environment, stable projects |
+| v22.x | Latest stable version | Try new features |
+| v18.x LTS | Old LTS | Compatibility considerations |
 
-## 我的推荐
+## My Recommendation
 
-**使用 nvm 安装 Node.js 20 LTS**
+**Use nvm to install Node.js 20 LTS**
 
-原因:
-- ✅ 稳定可靠
-- ✅ 长期支持
-- ✅ 性能优秀
-- ✅ 可以轻松切换版本
+Reasons:
+- ✅ Stable and reliable
+- ✅ Long-term support
+- ✅ Excellent performance
+- ✅ Easy version switching
 
 ---
 
-## 常见问题
+## Common Questions
 
-### Q: 升级后会影响其他项目吗?
+### Q: Will upgrading affect other projects?
 
-使用 nvm 不会影响,可以为每个项目使用不同版本。在项目根目录创建 `.nvmrc` 文件:
+Using nvm won't affect them, you can use different versions for each project. Create `.nvmrc` file in project root:
 
 ```bash
 echo "20" > .nvmrc
 ```
 
-然后在项目目录执行:
+Then in project directory run:
 ```bash
 nvm use
 ```
 
-### Q: npm 需要单独升级吗?
+### Q: Do I need to upgrade npm separately?
 
-不需要,安装新的 Node.js 会自动包含新版本的 npm。
+No, installing new Node.js automatically includes new npm version.
 
-### Q: 升级失败怎么办?
+### Q: What if upgrade fails?
 
-如果遇到问题:
-1. 完全卸载当前 Node.js
-2. 重启电脑
-3. 重新安装
+If you encounter issues:
+1. Completely uninstall current Node.js
+2. Restart computer
+3. Reinstall
 
 ---
 
-## 快速升级命令(推荐)
+## Quick Upgrade Commands (Recommended)
 
-如果你想快速升级,复制以下命令:
+If you want to upgrade quickly, copy these commands:
 
 ```bash
-# 安装 nvm
+# Install nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 
-# 重新加载 shell 配置
-source ~/.zshrc  # 或 source ~/.bashrc
+# Reload shell configuration
+source ~/.zshrc  # or source ~/.bashrc
 
-# 安装 Node.js 20 LTS
+# Install Node.js 20 LTS
 nvm install 20
 nvm alias default 20
 nvm use 20
 
-# 验证
+# Verify
 node --version
 npm --version
 
-# 重新安装项目依赖
-cd /Users/xuedong/code/chat-website/client && rm -rf node_modules package-lock.json && npm install
-cd /Users/xuedong/code/chat-website/server && rm -rf node_modules package-lock.json && npm install
+# Reinstall project dependencies
+cd /Users/xuedong/code/chat-app/client && rm -rf node_modules package-lock.json && npm install
+cd /Users/xuedong/code/chat-app/server && rm -rf node_modules package-lock.json && npm install
 ```
 
 ---
 
-## 升级后的好处
+## Post-Upgrade Benefits
 
-1. ✅ 更好的性能
-2. ✅ 更多的 JavaScript 特性
-3. ✅ 更好的安全性
-4. ✅ 消除依赖警告
-5. ✅ 支持最新的包
+1. ✅ Better performance
+2. ✅ More JavaScript features
+3. ✅ Better security
+4. ✅ Eliminate dependency warnings
+5. ✅ Support latest packages
 
 ---
 
-需要帮助?随时提问!
+Need help? Ask anytime!

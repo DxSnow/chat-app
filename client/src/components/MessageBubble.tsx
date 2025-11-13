@@ -101,7 +101,21 @@ const MessageBubble = observer(({ message }: MessageBubbleProps) => {
         >
           {message.sender}
         </div>
-        <div className="break-words">{message.content}</div>
+        {message.hasImage && message.imageUrl && (
+          <div className="mb-2">
+            <img
+              src={message.imageUrl}
+              alt="Uploaded image"
+              className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(message.imageUrl, '_blank');
+              }}
+              loading="lazy"
+            />
+          </div>
+        )}
+        {message.content && <div className="break-words">{message.content}</div>}
         <div
           className={`text-xs mt-1 ${
             message.isSelf ? 'text-white/70' : 'text-gray-400'

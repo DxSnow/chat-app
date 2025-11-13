@@ -1,86 +1,88 @@
-# 空白页面故障排除
+# Blank Page Troubleshooting
 
-## 🔍 诊断步骤
+[中文文档](./TROUBLESHOOTING.zh.md)
 
-### 1. 打开浏览器开发者工具
+## 🔍 Diagnostic Steps
 
-**按 `F12` 或 `Command + Option + I`**
+### 1. Open Browser Developer Tools
 
-### 2. 检查 Console (控制台)
+**Press `F12` or `Command + Option + I`**
 
-查看是否有红色错误信息。常见错误:
+### 2. Check Console Tab
 
-#### 错误 A: "Failed to fetch" 或 WebSocket 错误
-**原因:** 后端服务器未运行
-**解决:** 确保后端在运行 (`npm start` in server/)
+Look for red error messages. Common errors:
 
-#### 错误 B: MobX 相关错误
-**原因:** MobX 配置问题
-**解决:** 见下方
+#### Error A: "Failed to fetch" or WebSocket errors
+**Cause:** Backend server not running
+**Solution:** Ensure backend is running (`npm start` in server/)
 
-#### 错误 C: Tailwind CSS 相关错误
-**原因:** CSS 加载失败
-**解决:** 已修复,刷新页面
+#### Error B: MobX related errors
+**Cause:** MobX configuration issue
+**Solution:** See below
 
-#### 错误 D: 模块加载错误
-**原因:** 依赖问题
-**解决:** 重装依赖
+#### Error C: Tailwind CSS related errors
+**Cause:** CSS loading failed
+**Solution:** Already fixed, refresh page
 
-### 3. 检查 Network (网络) 标签
+#### Error D: Module loading errors
+**Cause:** Dependency issue
+**Solution:** Reinstall dependencies
 
-1. 切换到 Network 标签
-2. 刷新页面 (`Command + R`)
-3. 查看是否有失败的请求(红色)
+### 3. Check Network Tab
+
+1. Switch to Network tab
+2. Refresh page (`Command + R`)
+3. Look for failed requests (red)
 
 ---
 
-## 🔧 快速修复
+## 🔧 Quick Fixes
 
-### 修复 1: 清除缓存并硬刷新
+### Fix 1: Clear Cache and Hard Refresh
 
-**在浏览器中按:**
+**In browser, press:**
 - Mac: `Command + Shift + R`
 - Windows: `Ctrl + Shift + R`
 
-或:
-1. 右键点击刷新按钮
-2. 选择 "清除缓存并硬性重新加载"
+Or:
+1. Right-click the refresh button
+2. Select "Empty Cache and Hard Reload"
 
-### 修复 2: 重启前端服务器
+### Fix 2: Restart Frontend Server
 
-在前端终端:
+In frontend terminal:
 ```bash
-# Ctrl + C 停止
+# Ctrl + C to stop
 
-# 重新启动
+# Restart
 npm run dev
 ```
 
-### 修复 3: 确保使用 Node 20
+### Fix 3: Ensure Using Node 20
 
-在前端终端:
+In frontend terminal:
 ```bash
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 nvm use 20
-node --version  # 应该显示 v20.19.5
+node --version  # Should show v20.19.5
 
-# 重启
+# Restart
 npm run dev
 ```
 
-### 修复 4: 清除 Vite 缓存
+### Fix 4: Clear Vite Cache
 
 ```bash
-cd /Users/xuedong/code/chat-website/client
+cd /Users/xuedong/code/chat-app/client
 rm -rf node_modules/.vite
 npm run dev
 ```
 
-### 修复 5: 完全重装依赖
+### Fix 5: Complete Dependency Reinstall
 
 ```bash
-cd /Users/xuedong/code/chat-website/client
+cd /Users/xuedong/code/chat-app/client
 rm -rf node_modules package-lock.json node_modules/.vite
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
@@ -91,55 +93,55 @@ npm run dev
 
 ---
 
-## 📋 检查清单
+## 📋 Checklist
 
-请按顺序检查:
+Please check in order:
 
-- [ ] 后端服务器在运行(端口 3001)
-- [ ] 前端服务器在运行(端口 5173)
-- [ ] 使用的是 Node.js v20
-- [ ] 浏览器访问 http://localhost:5173/
-- [ ] 清除浏览器缓存
-- [ ] 检查浏览器控制台错误
-- [ ] 检查网络标签是否有失败请求
-
----
-
-## 🐛 报告问题
-
-如果以上都不行,请提供:
-
-1. **浏览器控制台的完整错误信息**
-   - 按 F12
-   - 截图或复制 Console 中的红色错误
-
-2. **前端终端的输出**
-   - 运行 `npm run dev` 后的完整输出
-
-3. **后端终端的输出**
-   - 运行 `npm start` 后的输出
-
-4. **浏览器和版本**
-   - 例如: Chrome 120, Safari 17, Firefox 121
+- [ ] Backend server is running (port 3001)
+- [ ] Frontend server is running (port 5173)
+- [ ] Using Node.js v20
+- [ ] Browser accessing http://localhost:5173/
+- [ ] Browser cache cleared
+- [ ] Check browser console errors
+- [ ] Check network tab for failed requests
 
 ---
 
-## 💡 临时测试方案
+## 🐛 Report Issues
 
-创建一个简单的测试页面:
+If none of the above work, please provide:
+
+1. **Complete browser console error messages**
+   - Press F12
+   - Screenshot or copy red errors from Console
+
+2. **Frontend terminal output**
+   - Complete output after running `npm run dev`
+
+3. **Backend terminal output**
+   - Output after running `npm start`
+
+4. **Browser and version**
+   - For example: Chrome 120, Safari 17, Firefox 121
+
+---
+
+## 💡 Temporary Test Solution
+
+Create a simple test page:
 
 ```bash
-cd /Users/xuedong/code/chat-website/client/src
+cd /Users/xuedong/code/chat-app/client/src
 ```
 
-创建 `Test.tsx`:
+Create `Test.tsx`:
 ```tsx
 export default function Test() {
   return <div className="p-4 text-2xl">Hello, Testing!</div>
 }
 ```
 
-修改 `App.tsx`:
+Modify `App.tsx`:
 ```tsx
 import Test from './Test'
 
@@ -150,18 +152,18 @@ function App() {
 export default App
 ```
 
-如果这个显示了,说明问题在 ChatStore 或组件中。
+If this displays, the issue is in ChatStore or components.
 
 ---
 
-## 🎯 最可能的原因
+## 🎯 Most Likely Causes
 
-基于你的情况,最可能的原因是:
+Based on your situation, most likely causes are:
 
-1. **浏览器缓存** - 试试硬刷新 (Command + Shift + R)
-2. **Node 版本** - 确保使用 Node 20
-3. **Vite 缓存** - 删除 `node_modules/.vite`
+1. **Browser cache** - Try hard refresh (Command + Shift + R)
+2. **Node version** - Ensure using Node 20
+3. **Vite cache** - Delete `node_modules/.vite`
 
 ---
 
-现在试试这些步骤,告诉我浏览器控制台显示什么错误!
+Try these steps now and let me know what errors the browser console shows!

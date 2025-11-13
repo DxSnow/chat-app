@@ -1,98 +1,100 @@
-# 修复 Zsh 权限问题
+# Fix Zsh Permission Issues
 
-## 问题说明
+[中文文档](./FIX_ZSH_PERMISSIONS.zh.md)
 
-你看到的错误信息:
+## Problem Description
+
+The error message you're seeing:
 ```
 zsh compinit: insecure directories, run compaudit for list.
 Ignore insecure directories and continue [y] or abort compinit [n]?
 ```
 
-这是因为某些 zsh 目录的权限设置不安全。
+This is because some zsh directories have insecure permission settings.
 
-## 立即解决方案
+## Immediate Solution
 
-**步骤 1:** 按 `y` 继续(让 nvm 安装完成)
+**Step 1:** Press `y` to continue (let nvm installation complete)
 
-**步骤 2:** nvm 安装完成后,在终端执行以下命令修复权限:
+**Step 2:** After nvm installation completes, run these commands in terminal to fix permissions:
 
 ```bash
-# 查看有问题的目录
+# View problematic directories
 compaudit
 
-# 修复所有不安全的目录
+# Fix all insecure directories
 compaudit | xargs chmod g-w
 ```
 
-**步骤 3:** 如果上面的命令需要权限,使用:
+**Step 3:** If the above command needs permissions, use:
 
 ```bash
-# 使用 sudo 修复
+# Use sudo to fix
 compaudit | xargs sudo chmod g-w
 ```
 
-**步骤 4:** 重新加载 zsh 配置:
+**Step 4:** Reload zsh configuration:
 
 ```bash
 source ~/.zshrc
 ```
 
-## 完整修复步骤(如果还有问题)
+## Complete Fix (If still having issues)
 
-如果上面的方法还不行,使用这个更彻底的方法:
+If the above method doesn't work, use this more thorough approach:
 
 ```bash
-# 1. 查看所有不安全的目录
+# 1. View all insecure directories
 compaudit
 
-# 2. 修复 /usr/local/share/zsh 目录
+# 2. Fix /usr/local/share/zsh directory
 sudo chmod -R 755 /usr/local/share/zsh
 
-# 3. 修复 Homebrew 相关目录(如果有)
+# 3. Fix Homebrew related directories (if any)
 sudo chown -R $(whoami) /usr/local/share/zsh /usr/local/share/zsh/site-functions
 
-# 4. 重建 zsh 缓存
+# 4. Rebuild zsh cache
 rm -f ~/.zcompdump*
 autoload -U compinit && compinit
 
-# 5. 重新加载配置
+# 5. Reload configuration
 source ~/.zshrc
 ```
 
-## 验证修复
+## Verify Fix
 
 ```bash
-# 重启终端或执行
+# Restart terminal or run
 exec zsh
 
-# 应该不再看到警告
+# Should no longer see warnings
 ```
 
-## 继续 nvm 安装
+## Continue nvm Installation
 
-修复权限后,继续 Node.js 升级步骤:
+After fixing permissions, continue with Node.js upgrade steps:
 
 ```bash
-# 1. 验证 nvm 安装
+# 1. Verify nvm installation
 nvm --version
 
-# 如果 nvm 命令找不到,重新加载配置
+# If nvm command not found, reload configuration
 source ~/.zshrc
 
-# 2. 安装 Node.js 20
+# 2. Install Node.js 20
 nvm install 20
 nvm alias default 20
 nvm use 20
 
-# 3. 验证
+# 3. Verify
 node --version
 npm --version
 ```
 
-## 快速命令(复制粘贴)
+## Quick Commands (Copy & Paste)
 
 ```bash
-# 按 y 继续 nvm 安装后,执行:
+# After pressing y to continue nvm installation, run:
 compaudit | xargs chmod g-w
 source ~/.zshrc
 nvm --version
@@ -102,23 +104,23 @@ nvm use 20
 node --version
 ```
 
-## 为什么会出现这个问题?
+## Why Does This Problem Occur?
 
-- Homebrew 安装的包可能创建了组可写的目录
-- macOS 系统更新可能改变了权限
-- 多用户环境中的权限配置问题
+- Packages installed by Homebrew may create group-writable directories
+- macOS system updates may change permissions
+- Permission configuration issues in multi-user environments
 
-## 预防措施
+## Prevention Measures
 
-在 `~/.zshrc` 文件末尾添加(可选):
+Add to end of `~/.zshrc` file (optional):
 
 ```bash
-# 跳过不安全目录检查(不推荐,但可以消除警告)
+# Skip insecure directory check (not recommended, but removes warnings)
 ZSH_DISABLE_COMPFIX=true
 ```
 
-**注意:** 推荐修复权限而不是禁用检查。
+**Note:** Recommend fixing permissions rather than disabling checks.
 
 ---
 
-需要帮助?随时问我!
+Need help? Ask me anytime!
