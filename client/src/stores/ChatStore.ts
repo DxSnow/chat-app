@@ -7,6 +7,7 @@ export interface Message {
   sender: string;
   timestamp: Date;
   isSelf: boolean;
+  color?: string; // Message bubble color (hex format)
 }
 
 export interface User {
@@ -23,11 +24,14 @@ class ChatStore {
   };
   isConnected: boolean = false;
   ws: WebSocket | null = null;
+  currentColor: string = '#3b82f6'; // Default blue color
+  colorSharingMode: 'local' | 'shared' = 'shared'; // Default: share with everyone
 
   constructor() {
     makeAutoObservable(this);
-    // Load nickname from localStorage on initialization
+    // Load nickname and color preferences from localStorage on initialization
     this.loadNickname();
+    this.loadColorPreferences();
   }
 
   loadNickname() {
@@ -44,6 +48,27 @@ class ChatStore {
 
   hasNickname(): boolean {
     return this.currentUser.name.trim().length > 0;
+  }
+
+  loadColorPreferences() {
+    const savedColor = localStorage.getItem('chatColor');
+    const savedMode = localStorage.getItem('chatColorSharingMode');
+    if (savedColor) {
+      this.currentColor = savedColor;
+    }
+    if (savedMode === 'local' || savedMode === 'shared') {
+      this.colorSharingMode = savedMode;
+    }
+  }
+
+  setColor(color: string) {
+    this.currentColor = color;
+    localStorage.setItem('chatColor', color);
+  }
+
+  setColorSharingMode(mode: 'local' | 'shared') {
+    this.colorSharingMode = mode;
+    localStorage.setItem('chatColorSharingMode', mode);
   }
 
   connectWebSocket(url: string) {
@@ -85,10 +110,13 @@ class ChatStore {
       sender: this.currentUser.name,
       timestamp: new Date(),
       isSelf: true,
+      // Include color only if sharing mode is 'shared', otherwise only apply locally
+      color: this.colorSharingMode === 'shared' ? this.currentColor : undefined,
     };
 
     this.ws.send(JSON.stringify(message));
-    this.addMessage(message);
+    // Always apply color locally (either from shared mode or local override)
+    this.addMessage({ ...message, color: this.currentColor });
   }
 
   addMessage(message: Message) {

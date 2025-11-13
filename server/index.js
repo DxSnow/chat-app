@@ -20,6 +20,7 @@ const messageSchema = new mongoose.Schema({
   sender: String,
   timestamp: { type: Date, default: Date.now },
   isSelf: Boolean,
+  color: String, // Message bubble color (hex format)
 });
 
 const Message = mongoose.model('Message', messageSchema);
