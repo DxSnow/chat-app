@@ -12,7 +12,7 @@ const MessageList = observer(() => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [chatStore.messages]);
+  }, [chatStore.messages.length]); // Track length to ensure scroll on every new message
 
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">
