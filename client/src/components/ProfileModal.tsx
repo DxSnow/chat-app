@@ -34,6 +34,11 @@ const ProfileModal = observer(({ isOpen, onClose }: ProfileModalProps) => {
       return;
     }
 
+    if (/\s/.test(displayName.trim())) {
+      setLocalError('Display name cannot contain spaces');
+      return;
+    }
+
     const result = await authStore.updateDisplayName(displayName.trim());
     if (result) {
       setSuccess(true);
@@ -79,7 +84,7 @@ const ProfileModal = observer(({ isOpen, onClose }: ProfileModalProps) => {
               autoFocus
             />
             <p className="text-gray-500 text-xs mt-1">
-              This is the name other users will see
+              This is the name other users will see. No spaces allowed.
             </p>
           </div>
 

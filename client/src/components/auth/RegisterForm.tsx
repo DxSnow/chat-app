@@ -34,6 +34,11 @@ const RegisterForm = observer(() => {
       return;
     }
 
+    if (/\s/.test(username.trim())) {
+      setLocalError('Username cannot contain spaces');
+      return;
+    }
+
     if (!password) {
       setLocalError('Please enter a password');
       return;
@@ -106,11 +111,12 @@ const RegisterForm = observer(() => {
             setLocalError('');
             authStore.clearError();
           }}
-          placeholder="Your display name"
+          placeholder="Your display name (no spaces)"
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
           autoComplete="username"
           maxLength={20}
         />
+        <p className="text-gray-500 text-xs mt-1">This name will be visible to other users. No spaces allowed.</p>
       </div>
 
       <div className="mb-4">

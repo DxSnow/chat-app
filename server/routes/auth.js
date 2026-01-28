@@ -86,6 +86,11 @@ router.post('/register', requireDatabase, registerLimiter, async (ctx) => {
       ctx.body = { error: 'Username must be 20 characters or less' };
       return;
     }
+    if (/\s/.test(username.trim())) {
+      ctx.status = 400;
+      ctx.body = { error: 'Username cannot contain spaces' };
+      return;
+    }
   }
 
   // Check registration limit
@@ -249,6 +254,12 @@ router.put('/profile', requireDatabase, authMiddleware, async (ctx) => {
   if (trimmedName.length > 20) {
     ctx.status = 400;
     ctx.body = { error: 'Display name must be 20 characters or less' };
+    return;
+  }
+
+  if (/\s/.test(trimmedName)) {
+    ctx.status = 400;
+    ctx.body = { error: 'Display name cannot contain spaces' };
     return;
   }
 

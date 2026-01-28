@@ -1,12 +1,11 @@
 # Deployment Guide - Chat Application
 
-This guide will walk you through deploying your chat application using DuckDNS (free domain) and DigitalOcean (backend) + Vercel (frontend).
+This guide walks you through deploying your chat application using DuckDNS (free domain) and Oracle Cloud (both frontend and backend).
 
 ## Architecture Overview
 
-- **Frontend**: Deployed on Vercel (FREE)
-- **Backend**: Deployed on DigitalOcean Droplet ($4-6/month)
-- **Database**: MongoDB Atlas (Already configured, FREE tier)
+- **Frontend + Backend**: Deployed on Oracle Cloud VM (FREE tier)
+- **Database**: MongoDB Atlas (FREE tier)
 - **Domain**: DuckDNS (FREE subdomain)
 - **SSL**: Let's Encrypt via Nginx (FREE)
 
@@ -16,29 +15,29 @@ This guide will walk you through deploying your chat application using DuckDNS (
 
 1. Go to https://www.duckdns.org
 2. Sign in with GitHub/Google/Reddit/Twitter
-3. Enter your desired subdomain name (e.g., `snowchat`)
+3. Enter your desired subdomain name (e.g., `chachachat`)
 4. Click "add domain"
 5. **Save your token** - you'll need it later
 6. Your domain: `yourname.duckdns.org`
 
 ---
 
-## Step 2: Create DigitalOcean Droplet
+## Step 2: Create Oracle Cloud VM
 
 ### 2.1 Create Account
-1. Go to https://www.digitalocean.com
-2. Sign up (get $200 credit for 60 days)
-3. Add payment method
+1. Go to https://www.oracle.com/cloud/free/
+2. Sign up for Oracle Cloud Free Tier
+3. Add payment method (won't be charged for free tier)
 
-### 2.2 Create Droplet
-1. Click "Create" → "Droplets"
-2. **Choose Image**: Ubuntu 22.04 LTS
-3. **Choose Plan**: Basic ($4/month - 512MB RAM)
+### 2.2 Create Compute Instance
+1. Go to Compute → Instances → Create Instance
+2. **Choose Image**: Ubuntu 22.04 (Canonical)
+3. **Choose Shape**: VM.Standard.E2.1.Micro (Always Free eligible)
 4. **Choose Region**: Closest to your users
-5. **Authentication**: SSH Key (recommended) or Password
+5. **Authentication**: Add your SSH public key
 6. **Hostname**: `chat-server`
-7. Click "Create Droplet"
-8. **Save your droplet's IP address** (e.g., `164.123.45.67`)
+7. Click "Create"
+8. **Save your instance's public IP address** (e.g., `164.123.45.67`)
 
 ---
 
@@ -46,43 +45,43 @@ This guide will walk you through deploying your chat application using DuckDNS (
 
 1. Go back to https://www.duckdns.org
 2. You should see your domain listed
-3. In the "current ip" field, paste your **DigitalOcean droplet IP**
+3. In the "current ip" field, paste your **Oracle Cloud instance IP**
 4. Click "update ip"
 5. Test: Open terminal and run:
    ```bash
    ping yourname.duckdns.org
    ```
-   You should see your droplet's IP address
+   You should see your instance's IP address
 
 ---
 
-## Step 4: Deploy Backend to DigitalOcean
+## Step 4: Deploy to Oracle Cloud
 
-### 4.1 SSH into Your Droplet
+### 4.1 SSH into Your Instance
 
 ```bash
-ssh root@yourname.duckdns.org
-# Or use: ssh root@YOUR_DROPLET_IP
+ssh ubuntu@yourname.duckdns.org
+# Or use: ssh ubuntu@YOUR_INSTANCE_IP
 ```
 
 ### 4.2 Install Node.js and Dependencies
 
 ```bash
 # Update system
-apt update && apt upgrade -y
+sudo apt update && sudo apt upgrade -y
 
 # Install Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt install -y nodejs
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 
 # Install Nginx (for reverse proxy and SSL)
-apt install -y nginx
+sudo apt install -y nginx
 
 # Install Certbot (for SSL certificates)
-apt install -y certbot python3-certbot-nginx
+sudo apt install -y certbot python3-certbot-nginx
 
 # Install PM2 (process manager to keep your app running)
-npm install -g pm2
+sudo npm install -g pm2
 
 # Verify installations
 node --version
@@ -94,38 +93,48 @@ nginx -v
 
 ```bash
 # Create app directory
-mkdir -p /var/www/chat-app
+sudo mkdir -p /var/www/chat-app
+sudo chown ubuntu:ubuntu /var/www/chat-app
 cd /var/www/chat-app
 
-# Clone or upload your backend code (we'll use git)
-# If you haven't pushed to GitHub yet, do that first, then:
+# Clone your code from GitHub
 git clone YOUR_GITHUB_REPO_URL .
 
-# If you don't have git setup, you can use SCP from your local machine:
-# On your LOCAL machine, run:
-# scp -r /Users/xuedong/code/chat-website/server/* root@yourname.duckdns.org:/var/www/chat-app/
+# Or use SCP from your local machine:
+# scp -r /path/to/chat-app/* ubuntu@yourname.duckdns.org:/var/www/chat-app/
 ```
 
-### 4.4 Configure Environment Variables
+### 4.4 Build Frontend
 
 ```bash
-cd /var/www/chat-app
+cd /var/www/chat-app/client
+npm install
+npm run build
+```
+
+### 4.5 Configure Backend Environment Variables
+
+```bash
+cd /var/www/chat-app/server
 
 # Create .env file
 nano .env
 ```
 
-Paste this (replace with your MongoDB URI):
+Paste this (replace with your values):
 ```env
 PORT=3001
-MONGODB_URI=mongodb+srv://dsnowx1_db_user:iohO9u47FR1ljoXR@cluster0.5sqdt8h.mongodb.net/chat-app?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_URI=your-mongodb-connection-string
+JWT_SECRET=your-secret-key-here
+ADMIN_TOKEN=your-admin-token-here
 ```
 
 Press `Ctrl+X`, then `Y`, then `Enter` to save.
 
-### 4.5 Install Dependencies and Start Server
+### 4.6 Install Backend Dependencies and Start Server
 
 ```bash
+cd /var/www/chat-app/server
 npm install
 
 # Start with PM2
@@ -140,10 +149,10 @@ pm2 status
 pm2 logs chat-server
 ```
 
-### 4.6 Configure Nginx Reverse Proxy
+### 4.7 Configure Nginx
 
 ```bash
-nano /etc/nginx/sites-available/chat-app
+sudo nano /etc/nginx/sites-available/chat-app
 ```
 
 Paste this configuration (replace `yourname.duckdns.org`):
@@ -153,7 +162,14 @@ server {
     listen 80;
     server_name yourname.duckdns.org;
 
+    # Frontend - serve static files
     location / {
+        root /var/www/chat-app/client/dist;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend API
+    location /api {
         proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -178,16 +194,16 @@ server {
 
 Enable the site:
 ```bash
-ln -s /etc/nginx/sites-available/chat-app /etc/nginx/sites-enabled/
-nginx -t
-systemctl restart nginx
+sudo ln -s /etc/nginx/sites-available/chat-app /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
 ```
 
-### 4.7 Set Up SSL Certificate (HTTPS)
+### 4.8 Set Up SSL Certificate (HTTPS)
 
 ```bash
 # Get SSL certificate from Let's Encrypt
-certbot --nginx -d yourname.duckdns.org
+sudo certbot --nginx -d yourname.duckdns.org
 
 # Follow prompts:
 # - Enter email
@@ -195,68 +211,24 @@ certbot --nginx -d yourname.duckdns.org
 # - Choose to redirect HTTP to HTTPS (option 2)
 
 # Set up auto-renewal
-certbot renew --dry-run
+sudo certbot renew --dry-run
 ```
 
 ---
 
-## Step 5: Deploy Frontend to Vercel
+## Step 5: Test Your Deployment
 
-### 5.1 Push Your Code to GitHub (if not already done)
-
-```bash
-cd /Users/xuedong/code/chat-website
-git add .
-git commit -m "Prepare for production deployment"
-git push origin main
-```
-
-### 5.2 Deploy to Vercel
-
-1. Go to https://vercel.com
-2. Sign in with GitHub
-3. Click "Add New" → "Project"
-4. Import your GitHub repository
-5. Configure:
-   - **Framework Preset**: Vite
-   - **Root Directory**: `client`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-6. Add **Environment Variables**:
-   - `VITE_API_URL` = `https://yourname.duckdns.org`
-   - `VITE_WS_URL` = `wss://yourname.duckdns.org`
-7. Click "Deploy"
-8. Wait for deployment to complete
-9. Your app will be live at: `your-app.vercel.app`
-
----
-
-## Step 6: Test Your Deployment
-
-1. Visit your Vercel URL: `your-app.vercel.app`
-2. Enter a nickname
-3. Send messages
+1. Visit your domain: `https://yourname.duckdns.org`
+2. Register an account
+3. Login and send messages
 4. Open in another browser/incognito and test real-time chat
 5. Check messages persist (MongoDB)
 
 ---
 
-## Optional: Custom Domain on Vercel
-
-If you want `yourname.duckdns.org` to point to your frontend:
-
-1. In Vercel dashboard → Your project → Settings → Domains
-2. Add `yourname.duckdns.org`
-3. Vercel will give you a CNAME record
-4. Update DuckDNS (note: DuckDNS doesn't support CNAME, so this won't work)
-
-**Alternative**: Use a different free domain service like Freenom, or keep Vercel's default domain.
-
----
-
 ## Maintenance Commands
 
-### On DigitalOcean Server
+### On Oracle Cloud Server
 
 ```bash
 # View logs
@@ -268,25 +240,22 @@ pm2 restart chat-server
 # Stop server
 pm2 stop chat-server
 
-# Update code
-cd /var/www/chat-app
+# Update code (backend)
+cd /var/www/chat-app/server
 git pull
 npm install
 pm2 restart chat-server
 
+# Update frontend
+cd /var/www/chat-app/client
+git pull
+npm install
+npm run build
+# No restart needed - Nginx serves static files
+
 # Renew SSL certificate
-certbot renew
+sudo certbot renew
 ```
-
-### Update Frontend (Vercel)
-
-Just push to GitHub:
-```bash
-git add .
-git commit -m "Update frontend"
-git push origin main
-```
-Vercel auto-deploys on push!
 
 ---
 
@@ -298,13 +267,10 @@ Vercel auto-deploys on push!
 pm2 status
 
 # Check nginx
-systemctl status nginx
+sudo systemctl status nginx
 
-# Check firewall
-ufw status
-ufw allow 80
-ufw allow 443
-ufw allow ssh
+# Check firewall (Oracle Cloud uses iptables)
+sudo iptables -L -n
 ```
 
 ### WebSocket connection failing
@@ -314,34 +280,49 @@ ufw allow ssh
 
 ### MongoDB connection issues
 - Check .env file has correct MONGODB_URI
-- Verify MongoDB Atlas allows connections from your droplet IP
-  - Go to MongoDB Atlas → Network Access → Add IP Address → Add your droplet IP
+- Verify MongoDB Atlas allows connections from your instance IP
+  - Go to MongoDB Atlas → Network Access → Add IP Address → Add your Oracle Cloud instance IP
+
+### 502 Bad Gateway
+```bash
+# Check PM2 logs for errors
+pm2 logs chat-server
+
+# Common fix: reinstall dependencies
+cd /var/www/chat-app/server
+npm install
+pm2 restart chat-server
+```
 
 ---
 
 ## Cost Summary
 
 - DuckDNS: **FREE**
-- Vercel (Frontend): **FREE**
 - MongoDB Atlas: **FREE** (512MB)
 - SSL Certificate: **FREE** (Let's Encrypt)
-- DigitalOcean Droplet: **$4-6/month**
+- Oracle Cloud VM: **FREE** (Always Free tier)
 
-**Total: $4-6/month** (or FREE for 60 days with DigitalOcean credits!)
+**Total: FREE**
 
 ---
 
-## Next Steps
+## Admin Features
 
-Once deployed, you can:
-1. Share your Vercel URL with friends
-2. Monitor usage in Vercel dashboard
-3. Check MongoDB Atlas for message storage
-4. Add more features to your chat app!
+### List all registered users
+```bash
+curl -H "x-admin-token: YOUR_ADMIN_TOKEN" https://yourname.duckdns.org/api/auth/admin/users
+```
+
+### Delete a user
+```bash
+curl -X DELETE -H "x-admin-token: YOUR_ADMIN_TOKEN" https://yourname.duckdns.org/api/auth/admin/users/USER_ID
+```
+
+---
 
 ## Need Help?
 
 If you get stuck at any step, check:
 1. PM2 logs: `pm2 logs chat-server`
 2. Nginx logs: `tail -f /var/log/nginx/error.log`
-3. Vercel deployment logs in the Vercel dashboard
