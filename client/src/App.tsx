@@ -1,14 +1,15 @@
 import { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import ChatWindow from './components/ChatWindow';
-import NicknameModal from './components/NicknameModal';
+import AuthModal from './components/auth/AuthModal';
 import { chatStore } from './stores/ChatStore';
+import { authStore } from './stores/AuthStore';
 import config from './config';
 
 const App = observer(() => {
   useEffect(() => {
-    // Only connect if user has a nickname
-    if (chatStore.hasNickname()) {
+    // Only connect if user is authenticated
+    if (authStore.isAuthenticated) {
       // Load history messages
       chatStore.loadHistoryMessages();
 
@@ -20,17 +21,10 @@ const App = observer(() => {
     return () => {
       chatStore.disconnectWebSocket();
     };
-  }, []);
+  }, [authStore.isAuthenticated]);
 
-  const handleNicknameSubmit = (nickname: string) => {
-    chatStore.setNickname(nickname);
-    // Connect after nickname is set
-    chatStore.loadHistoryMessages();
-    chatStore.connectWebSocket(config.wsUrl);
-  };
-
-  if (!chatStore.hasNickname()) {
-    return <NicknameModal onSubmit={handleNicknameSubmit} />;
+  if (!authStore.isAuthenticated) {
+    return <AuthModal />;
   }
 
   return <ChatWindow />;

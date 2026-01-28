@@ -12,6 +12,10 @@ const path = require('path');
 const cron = require('node-cron');
 require('dotenv').config();
 
+// Auth imports
+const authRouter = require('./routes/auth');
+const { authMiddleware, verifyWebSocketToken } = require('./middleware/auth');
+
 const app = new Koa();
 const router = new Router();
 
@@ -37,7 +41,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+    fileSize: 15 * 1024 * 1024, // 15MB limit
   },
   fileFilter: function (req, file, cb) {
     // Accept only image files
@@ -53,6 +57,7 @@ const upload = multer({
 const messageSchema = new mongoose.Schema({
   content: String,
   sender: String,
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   timestamp: { type: Date, default: Date.now },
   isSelf: Boolean,
   color: String, // Message bubble color (hex format)
@@ -75,7 +80,7 @@ const imageSchema = new mongoose.Schema({
 const Image = mongoose.model('Image', imageSchema);
 
 // REST API Routes
-router.get('/api/messages', async (ctx) => {
+router.get('/api/messages', authMiddleware, async (ctx) => {
   try {
     // Check if MongoDB is connected
     if (mongoose.connection.readyState !== 1) {
@@ -93,14 +98,19 @@ router.get('/api/messages', async (ctx) => {
   }
 });
 
-router.post('/api/messages', async (ctx) => {
+router.post('/api/messages', authMiddleware, async (ctx) => {
   try {
     // Check if MongoDB is connected
     if (mongoose.connection.readyState !== 1) {
       ctx.body = { success: false, message: 'Database not connected' };
       return;
     }
-    const message = new Message(ctx.request.body);
+    const messageData = {
+      ...ctx.request.body,
+      userId: ctx.state.user.userId,
+      sender: ctx.state.user.displayName,
+    };
+    const message = new Message(messageData);
     await message.save();
     ctx.body = message;
   } catch (error) {
@@ -112,42 +122,54 @@ router.post('/api/messages', async (ctx) => {
 
 // Image upload endpoint
 router.post('/api/upload', upload.single('image'), async (ctx) => {
+  const startTime = Date.now();
+  let uploadedFilePath = null;
+
   try {
     if (!ctx.file) {
+      console.log('[Upload] No file provided in request');
       ctx.status = 400;
       ctx.body = { error: 'No image file provided' };
       return;
     }
 
+    uploadedFilePath = ctx.file.path;
+    console.log(`[Upload] Received file: ${ctx.file.originalname}, size: ${(ctx.file.size / 1024).toFixed(2)}KB, type: ${ctx.file.mimetype}`);
+
     // Check storage BEFORE processing upload
     const storageUsage = await getStorageUsage();
-    console.log(`Current storage usage: ${storageUsage}%`);
+    console.log(`[Upload] Current storage usage: ${storageUsage}%`);
 
     // If storage is above 50%, run cleanup immediately
     if (storageUsage > 50) {
-      console.log('⚠️  Storage above 50%, running emergency cleanup...');
+      console.log('[Upload] ⚠️  Storage above 50%, running emergency cleanup...');
       await cleanupOldImages();
 
       // Check again after cleanup
       const newStorageUsage = await getStorageUsage();
       if (newStorageUsage > 55) {
-        // Still too high, reject upload
+        console.log(`[Upload] ❌ Storage still too high after cleanup: ${newStorageUsage}%`);
         ctx.status = 507; // Insufficient Storage
         ctx.body = { error: 'Server storage is full. Please try again later.' };
-        await fs.unlink(ctx.file.path); // Delete the uploaded file
+        await fs.unlink(ctx.file.path);
         return;
       }
     }
 
-    // Compress image using sharp
+    // Compress image using sharp with EXIF orientation handling
     const compressedPath = path.join(UPLOADS_DIR, 'compressed-' + ctx.file.filename);
+    console.log(`[Upload] Processing image with Sharp...`);
+
     await sharp(ctx.file.path)
-      .resize(1920, 1920, { // Max 1920px on longest side
+      .rotate() // Auto-rotate based on EXIF orientation
+      .resize(1920, 1920, {
         fit: 'inside',
         withoutEnlargement: true
       })
-      .jpeg({ quality: 85 }) // Convert to JPEG with 85% quality
+      .jpeg({ quality: 85, mozjpeg: true }) // Use mozjpeg for better compression
       .toFile(compressedPath);
+
+    console.log(`[Upload] Image processed successfully`);
 
     // Delete original, use compressed
     await fs.unlink(ctx.file.path);
@@ -155,6 +177,8 @@ router.post('/api/upload', upload.single('image'), async (ctx) => {
 
     // Get final file size
     const stats = await fs.stat(ctx.file.path);
+    const compressionRatio = ((1 - stats.size / ctx.file.size) * 100).toFixed(1);
+    console.log(`[Upload] Compressed from ${(ctx.file.size / 1024).toFixed(2)}KB to ${(stats.size / 1024).toFixed(2)}KB (saved ${compressionRatio}%)`);
 
     // Save image metadata to database if MongoDB is connected
     if (mongoose.connection.readyState === 1) {
@@ -165,7 +189,11 @@ router.post('/api/upload', upload.single('image'), async (ctx) => {
         mimeType: ctx.file.mimetype,
       });
       await image.save();
+      console.log(`[Upload] Metadata saved to database`);
     }
+
+    const processingTime = Date.now() - startTime;
+    console.log(`[Upload] ✅ Upload completed in ${processingTime}ms`);
 
     // Return image URL
     ctx.body = {
@@ -175,9 +203,24 @@ router.post('/api/upload', upload.single('image'), async (ctx) => {
       size: stats.size,
     };
   } catch (error) {
-    console.error('Error uploading image:', error);
+    console.error('[Upload] ❌ Error during upload:', error);
+    console.error('[Upload] Error stack:', error.stack);
+
+    // Clean up the uploaded file if it exists
+    if (uploadedFilePath) {
+      try {
+        await fs.unlink(uploadedFilePath);
+        console.log(`[Upload] Cleaned up failed upload file`);
+      } catch (unlinkError) {
+        console.error('[Upload] Failed to clean up file:', unlinkError);
+      }
+    }
+
     ctx.status = 500;
-    ctx.body = { error: 'Failed to upload image: ' + error.message };
+    ctx.body = {
+      error: 'Failed to upload image: ' + error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
   }
 });
 
@@ -185,6 +228,8 @@ router.post('/api/upload', upload.single('image'), async (ctx) => {
 const serve = require('koa-static');
 app.use(serve(path.join(__dirname)));
 
+// Mount auth routes
+app.use(authRouter.routes()).use(authRouter.allowedMethods());
 app.use(router.routes()).use(router.allowedMethods());
 
 // Create HTTP server
@@ -195,19 +240,48 @@ const wss = new WebSocketServer({ server });
 
 const clients = new Set();
 
-wss.on('connection', (ws) => {
-  console.log('New client connected');
+wss.on('connection', (ws, req) => {
+  // Extract token from query string
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+
+  if (!token) {
+    console.log('WebSocket connection rejected: No token provided');
+    ws.close(4001, 'Authentication required');
+    return;
+  }
+
+  const decoded = verifyWebSocketToken(token);
+  if (!decoded) {
+    console.log('WebSocket connection rejected: Invalid token');
+    ws.close(4001, 'Invalid token');
+    return;
+  }
+
+  // Attach user info to WebSocket
+  ws.userId = decoded.userId;
+  ws.userEmail = decoded.email;
+  ws.displayName = decoded.displayName;
+
+  console.log(`User connected: ${decoded.displayName} (${decoded.email})`);
   clients.add(ws);
 
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data.toString());
-      console.log('Received message:', message);
+
+      // Use authenticated user info
+      message.userId = ws.userId;
+      message.sender = ws.displayName;
+
+      console.log('Received message from', ws.displayName);
 
       // Save to database if MongoDB is connected
       if (mongoose.connection.readyState === 1) {
         const dbMessage = new Message({
           ...message,
+          userId: ws.userId,
+          sender: ws.displayName,
           timestamp: new Date(message.timestamp),
         });
         await dbMessage.save();
@@ -228,7 +302,7 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    console.log('Client disconnected');
+    console.log(`User disconnected: ${ws.displayName}`);
     clients.delete(ws);
   });
 
