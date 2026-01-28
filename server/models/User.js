@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema({
   lockUntil: {
     type: Date,
   },
+  securityAnswer: {
+    type: String,
+    select: false,
+  },
 });
 
 // Extract display name from email

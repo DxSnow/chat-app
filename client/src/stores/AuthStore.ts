@@ -14,11 +14,6 @@ class AuthStore {
   isLoading: boolean = false;
   error: string | null = null;
 
-  // OTP flow state
-  otpSent: boolean = false;
-  otpEmail: string = '';
-  otpUsername: string = '';
-
   constructor() {
     makeAutoObservable(this);
     this.loadFromStorage();
@@ -60,12 +55,17 @@ class AuthStore {
     }
   }
 
-  async register(email: string, password: string, username?: string) {
+  async register(
+    email: string,
+    password: string,
+    username?: string,
+    secretWord?: string
+  ) {
     this.isLoading = true;
     this.error = null;
 
     try {
-      const response = await authService.register(email, password, username);
+      const response = await authService.register(email, password, username, secretWord);
       runInAction(() => {
         this.setAuth(response.token, response.user);
       });
@@ -81,22 +81,18 @@ class AuthStore {
     }
   }
 
-  async requestOTP(email: string, username?: string) {
+  async verifyEmailForReset(email: string): Promise<boolean> {
     this.isLoading = true;
     this.error = null;
 
     try {
-      await authService.requestOTP(email);
-      runInAction(() => {
-        this.otpSent = true;
-        this.otpEmail = email;
-        this.otpUsername = username || '';
-      });
+      await authService.verifyEmailForReset(email);
+      return true;
     } catch (error: unknown) {
       runInAction(() => {
-        this.error = error instanceof Error ? error.message : 'Failed to send code';
+        this.error = error instanceof Error ? error.message : 'Email verification failed';
       });
-      throw error;
+      return false;
     } finally {
       runInAction(() => {
         this.isLoading = false;
@@ -104,23 +100,48 @@ class AuthStore {
     }
   }
 
-  async verifyOTP(email: string, code: string) {
+  async resetPassword(email: string, secretWord: string, newPassword: string): Promise<boolean> {
     this.isLoading = true;
     this.error = null;
 
     try {
-      const response = await authService.verifyOTP(email, code, this.otpUsername || undefined);
-      runInAction(() => {
-        this.setAuth(response.token, response.user);
-        this.otpSent = false;
-        this.otpEmail = '';
-        this.otpUsername = '';
-      });
+      await authService.resetPassword(email, secretWord, newPassword);
+      return true;
     } catch (error: unknown) {
       runInAction(() => {
-        this.error = error instanceof Error ? error.message : 'Invalid code';
+        this.error = error instanceof Error ? error.message : 'Password reset failed';
       });
-      throw error;
+      return false;
+    } finally {
+      runInAction(() => {
+        this.isLoading = false;
+      });
+    }
+  }
+
+  async updateDisplayName(displayName: string): Promise<boolean> {
+    if (!this.token) {
+      this.error = 'Not authenticated';
+      return false;
+    }
+
+    this.isLoading = true;
+    this.error = null;
+
+    try {
+      const response = await authService.updateProfile(this.token, displayName);
+      runInAction(() => {
+        if (this.user) {
+          this.user = response.user;
+          localStorage.setItem('authUser', JSON.stringify(response.user));
+        }
+      });
+      return true;
+    } catch (error: unknown) {
+      runInAction(() => {
+        this.error = error instanceof Error ? error.message : 'Failed to update display name';
+      });
+      return false;
     } finally {
       runInAction(() => {
         this.isLoading = false;
@@ -145,9 +166,6 @@ class AuthStore {
     this.token = null;
     this.user = null;
     this.isAuthenticated = false;
-    this.otpSent = false;
-    this.otpEmail = '';
-    this.otpUsername = '';
     this.error = null;
     localStorage.removeItem('authToken');
     localStorage.removeItem('authUser');
@@ -156,13 +174,6 @@ class AuthStore {
   }
 
   clearError() {
-    this.error = null;
-  }
-
-  resetOTPFlow() {
-    this.otpSent = false;
-    this.otpEmail = '';
-    this.otpUsername = '';
     this.error = null;
   }
 }

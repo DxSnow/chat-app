@@ -27,13 +27,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export async function register(email: string, password: string, username?: string): Promise<AuthResponse> {
+export async function register(
+  email: string,
+  password: string,
+  username?: string,
+  secretWord?: string
+): Promise<AuthResponse> {
   const response = await fetch(`${config.apiUrl}/api/auth/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email, password, username }),
+    body: JSON.stringify({ email, password, username, securityAnswer: secretWord }),
   });
 
   return handleResponse<AuthResponse>(response);
@@ -46,30 +51,6 @@ export async function login(email: string, password: string): Promise<AuthRespon
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ email, password }),
-  });
-
-  return handleResponse<AuthResponse>(response);
-}
-
-export async function requestOTP(email: string): Promise<{ success: boolean; message: string }> {
-  const response = await fetch(`${config.apiUrl}/api/auth/otp/request`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email }),
-  });
-
-  return handleResponse<{ success: boolean; message: string }>(response);
-}
-
-export async function verifyOTP(email: string, code: string, username?: string): Promise<AuthResponse> {
-  const response = await fetch(`${config.apiUrl}/api/auth/otp/verify`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email, code, username }),
   });
 
   return handleResponse<AuthResponse>(response);
@@ -93,4 +74,45 @@ export async function logout(token: string): Promise<void> {
       'Authorization': `Bearer ${token}`,
     },
   });
+}
+
+export async function updateProfile(token: string, displayName: string): Promise<{ success: boolean; user: AuthResponse['user'] }> {
+  const response = await fetch(`${config.apiUrl}/api/auth/profile`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ displayName }),
+  });
+
+  return handleResponse<{ success: boolean; user: AuthResponse['user'] }>(response);
+}
+
+export async function verifyEmailForReset(email: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${config.apiUrl}/api/auth/forgot-password/verify-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  return handleResponse<{ success: boolean }>(response);
+}
+
+export async function resetPassword(
+  email: string,
+  secretWord: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(`${config.apiUrl}/api/auth/forgot-password/reset`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, secretWord, newPassword }),
+  });
+
+  return handleResponse<{ success: boolean; message: string }>(response);
 }

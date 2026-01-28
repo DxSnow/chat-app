@@ -1,12 +1,10 @@
 const Router = require('@koa/router');
 const bcrypt = require('bcrypt');
-const crypto = require('crypto');
 const mongoose = require('mongoose');
 const User = require('../models/User');
-const OTP = require('../models/OTP');
 const { authMiddleware, generateToken } = require('../middleware/auth');
-const { loginLimiter, otpRequestLimiter, otpVerifyLimiter, registerLimiter } = require('../middleware/rateLimit');
-const { sendOTPEmail, sendWelcomeEmail } = require('../services/emailService');
+const { loginLimiter, registerLimiter } = require('../middleware/rateLimit');
+const { sendWelcomeEmail } = require('../services/emailService');
 
 const router = new Router({ prefix: '/api/auth' });
 
@@ -21,13 +19,7 @@ async function requireDatabase(ctx, next) {
 }
 
 const SALT_ROUNDS = 12;
-const OTP_EXPIRY_MINUTES = 10;
-const MAX_OTP_ATTEMPTS = 3;
-
-// Generate 6-digit OTP
-function generateOTP() {
-  return crypto.randomInt(100000, 999999).toString();
-}
+const MAX_USERS = 20; // Registration limit
 
 // Validate email format
 function isValidEmail(email) {
@@ -44,9 +36,11 @@ function validatePassword(password) {
   return errors;
 }
 
+// Secret word is used instead of security questions for simpler password recovery
+
 // POST /api/auth/register - Register with email/password
 router.post('/register', requireDatabase, registerLimiter, async (ctx) => {
-  const { email, password, username } = ctx.request.body;
+  const { email, password, username, securityQuestion, securityAnswer } = ctx.request.body;
 
   if (!email || !isValidEmail(email)) {
     ctx.status = 400;
@@ -67,6 +61,19 @@ router.post('/register', requireDatabase, registerLimiter, async (ctx) => {
     return;
   }
 
+  // Validate secret word
+  if (!securityAnswer) {
+    ctx.status = 400;
+    ctx.body = { error: 'Secret word is required' };
+    return;
+  }
+
+  if (securityAnswer.trim().length < 2) {
+    ctx.status = 400;
+    ctx.body = { error: 'Secret word must be at least 2 characters' };
+    return;
+  }
+
   // Validate username if provided
   if (username) {
     if (username.trim().length < 2) {
@@ -81,6 +88,14 @@ router.post('/register', requireDatabase, registerLimiter, async (ctx) => {
     }
   }
 
+  // Check registration limit
+  const userCount = await User.countDocuments();
+  if (userCount >= MAX_USERS) {
+    ctx.status = 403;
+    ctx.body = { error: 'Registration is currently closed. Maximum number of users reached.' };
+    return;
+  }
+
   // Check if user exists
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
@@ -89,8 +104,9 @@ router.post('/register', requireDatabase, registerLimiter, async (ctx) => {
     return;
   }
 
-  // Hash password and create user
+  // Hash password and security answer
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+  const hashedAnswer = await bcrypt.hash(securityAnswer.trim().toLowerCase(), SALT_ROUNDS);
   // Use provided username or fall back to email prefix
   const displayName = username ? username.trim() : User.extractDisplayName(email);
 
@@ -100,6 +116,7 @@ router.post('/register', requireDatabase, registerLimiter, async (ctx) => {
     displayName,
     authMethod: 'password',
     isVerified: true,
+    securityAnswer: hashedAnswer,
   });
 
   await user.save();
@@ -120,6 +137,7 @@ router.post('/register', requireDatabase, registerLimiter, async (ctx) => {
     },
   };
 });
+
 
 // POST /api/auth/login - Login with email/password
 router.post('/login', requireDatabase, loginLimiter, async (ctx) => {
@@ -189,137 +207,6 @@ router.post('/login', requireDatabase, loginLimiter, async (ctx) => {
   };
 });
 
-// POST /api/auth/otp/request - Request OTP code
-router.post('/otp/request', requireDatabase, otpRequestLimiter, async (ctx) => {
-  const { email } = ctx.request.body;
-
-  if (!email || !isValidEmail(email)) {
-    ctx.status = 400;
-    ctx.body = { error: 'Valid email is required' };
-    return;
-  }
-
-  const normalizedEmail = email.toLowerCase();
-
-  // Delete any existing OTPs for this email
-  await OTP.deleteMany({ email: normalizedEmail });
-
-  // Generate new OTP
-  const code = generateOTP();
-  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-  const otp = new OTP({
-    email: normalizedEmail,
-    code,
-    purpose: 'login',
-    expiresAt,
-  });
-
-  await otp.save();
-
-  // Send OTP email
-  try {
-    await sendOTPEmail(normalizedEmail, code);
-  } catch (error) {
-    console.error('Failed to send OTP email:', error);
-    ctx.status = 500;
-    ctx.body = { error: 'Failed to send verification code. Please try again.' };
-    return;
-  }
-
-  ctx.body = {
-    success: true,
-    message: 'Verification code sent to your email',
-  };
-});
-
-// POST /api/auth/otp/verify - Verify OTP and login
-router.post('/otp/verify', requireDatabase, otpVerifyLimiter, async (ctx) => {
-  const { email, code, username } = ctx.request.body;
-
-  if (!email || !code) {
-    ctx.status = 400;
-    ctx.body = { error: 'Email and code are required' };
-    return;
-  }
-
-  const normalizedEmail = email.toLowerCase();
-
-  // Find OTP
-  const otp = await OTP.findOne({ email: normalizedEmail });
-
-  if (!otp) {
-    ctx.status = 401;
-    ctx.body = { error: 'No verification code found. Please request a new one.' };
-    return;
-  }
-
-  // Check expiration
-  if (otp.expiresAt < new Date()) {
-    await OTP.deleteOne({ _id: otp._id });
-    ctx.status = 401;
-    ctx.body = { error: 'Code has expired. Please request a new one.' };
-    return;
-  }
-
-  // Check code
-  if (otp.code !== code) {
-    otp.attempts += 1;
-
-    if (otp.attempts >= MAX_OTP_ATTEMPTS) {
-      await OTP.deleteOne({ _id: otp._id });
-      ctx.status = 401;
-      ctx.body = { error: 'Too many failed attempts. Please request a new code.' };
-      return;
-    }
-
-    await otp.save();
-    ctx.status = 401;
-    ctx.body = { error: 'Invalid code. Please try again.' };
-    return;
-  }
-
-  // Delete OTP after successful verification
-  await OTP.deleteOne({ _id: otp._id });
-
-  // Find or create user
-  let user = await User.findOne({ email: normalizedEmail });
-  let isNewUser = false;
-
-  if (!user) {
-    // Create new user with OTP-only auth
-    // Use provided username or fall back to email prefix
-    const displayName = username ? username.trim() : User.extractDisplayName(normalizedEmail);
-    user = new User({
-      email: normalizedEmail,
-      displayName,
-      authMethod: 'otp',
-      isVerified: true,
-    });
-    await user.save();
-    isNewUser = true;
-
-    // Send welcome email (non-blocking)
-    sendWelcomeEmail(normalizedEmail, displayName).catch(console.error);
-  }
-
-  // Update last login
-  user.lastLogin = new Date();
-  await user.save();
-
-  const token = generateToken(user);
-
-  ctx.body = {
-    success: true,
-    token,
-    user: {
-      id: user._id,
-      email: user.email,
-      displayName: user.displayName,
-    },
-    isNewUser,
-  };
-});
 
 // GET /api/auth/me - Get current user info
 router.get('/me', requireDatabase, authMiddleware, async (ctx) => {
@@ -341,11 +228,155 @@ router.get('/me', requireDatabase, authMiddleware, async (ctx) => {
   };
 });
 
+// PUT /api/auth/profile - Update user profile (display name)
+router.put('/profile', requireDatabase, authMiddleware, async (ctx) => {
+  const { displayName } = ctx.request.body;
+
+  if (!displayName || !displayName.trim()) {
+    ctx.status = 400;
+    ctx.body = { error: 'Display name is required' };
+    return;
+  }
+
+  const trimmedName = displayName.trim();
+
+  if (trimmedName.length < 2) {
+    ctx.status = 400;
+    ctx.body = { error: 'Display name must be at least 2 characters' };
+    return;
+  }
+
+  if (trimmedName.length > 20) {
+    ctx.status = 400;
+    ctx.body = { error: 'Display name must be 20 characters or less' };
+    return;
+  }
+
+  const user = await User.findById(ctx.state.user.userId);
+
+  if (!user) {
+    ctx.status = 404;
+    ctx.body = { error: 'User not found' };
+    return;
+  }
+
+  user.displayName = trimmedName;
+  await user.save();
+
+  ctx.body = {
+    success: true,
+    user: {
+      id: user._id,
+      email: user.email,
+      displayName: user.displayName,
+    },
+  };
+});
+
 // POST /api/auth/logout - Logout (mainly for client-side cleanup notification)
 router.post('/logout', authMiddleware, async (ctx) => {
   // For JWT, logout is mainly client-side (delete token)
   // This endpoint can be used for logging/analytics
   ctx.body = { success: true, message: 'Logged out successfully' };
+});
+
+// POST /api/auth/forgot-password/verify-email - Verify email exists for password reset
+router.post('/forgot-password/verify-email', requireDatabase, loginLimiter, async (ctx) => {
+  const { email } = ctx.request.body;
+
+  if (!email || !isValidEmail(email)) {
+    ctx.status = 400;
+    ctx.body = { error: 'Valid email is required' };
+    return;
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() }).select('+securityAnswer');
+
+  if (!user) {
+    ctx.status = 404;
+    ctx.body = { error: 'No account found with this email' };
+    return;
+  }
+
+  if (!user.securityAnswer) {
+    ctx.status = 400;
+    ctx.body = { error: 'No secret word set for this account. Please contact your teacher.' };
+    return;
+  }
+
+  ctx.body = {
+    success: true,
+  };
+});
+
+// POST /api/auth/forgot-password/reset - Reset password using secret word
+router.post('/forgot-password/reset', requireDatabase, loginLimiter, async (ctx) => {
+  const { email, secretWord, newPassword } = ctx.request.body;
+
+  if (!email || !secretWord || !newPassword) {
+    ctx.status = 400;
+    ctx.body = { error: 'Email, secret word, and new password are required' };
+    return;
+  }
+
+  const passwordErrors = validatePassword(newPassword);
+  if (passwordErrors.length > 0) {
+    ctx.status = 400;
+    ctx.body = { error: passwordErrors[0] };
+    return;
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() }).select('+securityAnswer +password');
+
+  if (!user) {
+    ctx.status = 404;
+    ctx.body = { error: 'No account found with this email' };
+    return;
+  }
+
+  if (!user.securityAnswer) {
+    ctx.status = 400;
+    ctx.body = { error: 'No secret word set for this account' };
+    return;
+  }
+
+  // Check if account is locked
+  if (user.isLocked()) {
+    ctx.status = 423;
+    ctx.body = { error: 'Account is temporarily locked. Please try again later.' };
+    return;
+  }
+
+  // Verify secret word (case-insensitive)
+  const isWordValid = await bcrypt.compare(secretWord.trim().toLowerCase(), user.securityAnswer);
+
+  if (!isWordValid) {
+    // Increment login attempts (reuse the same lock mechanism)
+    user.loginAttempts += 1;
+    if (user.loginAttempts >= 5) {
+      user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+    }
+    await user.save();
+
+    ctx.status = 401;
+    ctx.body = { error: 'Incorrect secret word' };
+    return;
+  }
+
+  // Reset password
+  const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  user.password = hashedPassword;
+  user.loginAttempts = 0;
+  user.lockUntil = undefined;
+  if (user.authMethod === 'otp') {
+    user.authMethod = 'both';
+  }
+  await user.save();
+
+  ctx.body = {
+    success: true,
+    message: 'Password has been reset successfully',
+  };
 });
 
 module.exports = router;

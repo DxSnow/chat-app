@@ -1,6 +1,6 @@
-# Chat App - Real-time Chat Application
+# Chat App - Private Messaging Application
 
-A real-time chat application built with modern technology stack, supporting PWA features and working perfectly on both mobile and desktop devices.
+A private messaging application built with modern technology stack, supporting PWA features and working perfectly on both mobile and desktop devices.
 
 [中文文档](./README.zh.md)
 
@@ -17,21 +17,31 @@ A real-time chat application built with modern technology stack, supporting PWA 
 ### Backend
 - **Koa.js** - Node.js Web Framework
 - **WebSocket (ws)** - Real-time Communication
-- **MongoDB** - Database (Optional)
+- **MongoDB** - Database (Required)
 - **Mongoose** - MongoDB ODM
+- **bcrypt** - Password Hashing
+- **JWT** - Authentication
 
 ## Features
 
-- ✅ Real-time message sending and receiving
-- ✅ WebSocket real-time communication
-- ✅ Message history
-- ✅ Responsive design (mobile and desktop friendly)
-- ✅ PWA support (installable to desktop)
-- ✅ Offline message caching
-- ✅ MongoDB persistent storage (optional)
-- ✅ WeChat-like chat interface
-- ✅ Custom nickname support
-- ✅ Color picker for personalized messages
+- Private 1-on-1 messaging (no public chat)
+- User authentication with email/password
+- Password recovery via secret word
+- Real-time message delivery via WebSocket
+- Message history persistence
+- Responsive design (mobile and desktop friendly)
+- PWA support (installable to desktop)
+- Image sharing with automatic compression
+- Registration limit (configurable, default 20 users)
+- Color picker for personalized messages
+
+## How It Works
+
+1. **Register** with email, password, username, and a secret word
+2. **Login** with email and password
+3. **Start a chat** by entering another user's username
+4. **Send messages** - they're delivered in real-time
+5. **Previous conversations** load automatically when you enter the same username
 
 ## Project Structure
 
@@ -40,18 +50,29 @@ chat-app/
 ├── client/                 # Frontend application
 │   ├── src/
 │   │   ├── components/    # React components
-│   │   │   ├── ChatWindow.tsx
-│   │   │   ├── MessageList.tsx
-│   │   │   ├── MessageBubble.tsx
-│   │   │   └── MessageInput.tsx
+│   │   │   ├── ChatWindow.tsx      # Main chat interface
+│   │   │   ├── MessageList.tsx     # Message display
+│   │   │   ├── MessageBubble.tsx   # Individual message
+│   │   │   ├── MessageInput.tsx    # Message input
+│   │   │   ├── ProfileModal.tsx    # Profile editor
+│   │   │   └── auth/               # Authentication components
 │   │   ├── stores/        # MobX state management
-│   │   │   └── ChatStore.ts
+│   │   │   ├── ChatStore.ts
+│   │   │   └── AuthStore.ts
+│   │   ├── services/      # API services
+│   │   │   └── authService.ts
 │   │   ├── App.tsx
 │   │   └── main.tsx
-│   ├── public/
 │   └── package.json
 └── server/                # Backend server
     ├── index.js           # Koa server + WebSocket
+    ├── routes/
+    │   └── auth.js        # Authentication routes
+    ├── models/
+    │   ├── User.js        # User model
+    │   └── Conversation.js # Conversation model
+    ├── middleware/
+    │   └── auth.js        # JWT middleware
     ├── .env.example       # Environment variables example
     └── package.json
 ```
@@ -62,6 +83,7 @@ chat-app/
 
 - Node.js >= 18.x (Latest LTS recommended)
 - npm >= 8.x
+- MongoDB (Atlas or local)
 
 ### Installation Steps
 
@@ -83,11 +105,13 @@ cd ../server
 npm install
 ```
 
-4. **Configure environment variables (optional)**
+4. **Configure environment variables**
 ```bash
 cd server
 cp .env.example .env
-# Edit .env file and add MongoDB connection string
+# Edit .env file and add:
+# - MONGODB_URI (required)
+# - JWT_SECRET (required)
 ```
 
 ### Running the Application
@@ -110,9 +134,19 @@ Frontend will start at `http://localhost:5173`
 
 Open your browser and visit: `http://localhost:5173`
 
-## MongoDB Configuration
+## Configuration
 
-### Using MongoDB Atlas (Recommended)
+### Registration Limit
+
+By default, only 20 users can register. To change this limit, edit `server/routes/auth.js`:
+
+```javascript
+const MAX_USERS = 20; // Change this number
+```
+
+### MongoDB Configuration
+
+#### Using MongoDB Atlas (Recommended)
 
 1. Visit [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
 2. Create a free cluster
@@ -120,11 +154,40 @@ Open your browser and visit: `http://localhost:5173`
 4. Set in `server/.env`:
 ```
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/chat-app?retryWrites=true&w=majority
+JWT_SECRET=your-secret-key-here
 ```
 
-### Running Without Database
+## API Endpoints
 
-If MongoDB is not configured, the application will run in memory mode (messages will be lost after restart).
+### Authentication
+
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login
+- `GET /api/auth/me` - Get current user
+- `PUT /api/auth/profile` - Update display name
+- `POST /api/auth/forgot-password/verify-email` - Verify email for password reset
+- `POST /api/auth/forgot-password/reset` - Reset password with secret word
+
+### Conversations
+
+- `POST /api/conversations/by-username` - Find/create conversation by username
+- `GET /api/conversations/:id/messages` - Get messages for a conversation
+
+### WebSocket
+
+Connection: `ws://localhost:3001?token=<jwt-token>`
+
+Message format:
+```json
+{
+  "id": "msg-1234567890",
+  "content": "Hello",
+  "sender": "Username",
+  "timestamp": "2025-01-27T12:00:00.000Z",
+  "conversationId": "conversation-id",
+  "messageType": "private"
+}
+```
 
 ## PWA Features
 
@@ -137,52 +200,13 @@ If MongoDB is not configured, the application will run in memory mode (messages 
 ### Features
 
 - Offline access
-- Message caching
 - Native app-like experience
 - Splash screen
 - Standalone window
 
-## Development
-
-### Frontend Development
-```bash
-cd client
-npm run dev    # Development mode
-npm run build  # Production build
-npm run preview # Preview production build
-```
-
-### Backend Development
-```bash
-cd server
-npm run dev    # Start server
-```
-
 ## Deployment
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
-
-## API Endpoints
-
-### REST API
-
-- `GET /api/messages` - Get message history
-- `POST /api/messages` - Save new message
-
-### WebSocket
-
-Connection address: `ws://localhost:3001`
-
-Message format:
-```json
-{
-  "id": "msg-1234567890",
-  "content": "Hello",
-  "sender": "User",
-  "timestamp": "2025-10-31T12:00:00.000Z",
-  "isSelf": true
-}
-```
 
 ## Browser Support
 
@@ -193,32 +217,22 @@ Message format:
 
 ## Troubleshooting
 
+### "Failed to fetch" on Login
+
+1. Ensure backend server is running
+2. Check that MongoDB is connected
+3. Verify CORS settings
+
 ### WebSocket Connection Failed
 
 1. Ensure backend server is running
-2. Check firewall settings
-3. Verify URL configuration is correct
+2. Check that JWT token is valid
+3. Verify WebSocket URL configuration
 
-### MongoDB Connection Error
+### "User already exists" but can't login
 
-1. Check connection string format
-2. Verify network IP whitelist
-3. Validate username and password
-
-### PWA Cannot Install
-
-1. Ensure using HTTPS (production environment)
-2. Check manifest.json configuration
-3. Verify icon files exist
-
-## Contributing
-
-Issues and Pull Requests are welcome!
+Old OTP-only users are automatically cleaned up on server restart. Restart the server and try registering again.
 
 ## License
 
 MIT
-
-## Contact
-
-For questions, please submit an Issue or contact the developer.

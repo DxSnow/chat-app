@@ -7,6 +7,7 @@ const RegisterForm = observer(() => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [secretWord, setSecretWord] = useState('');
   const [localError, setLocalError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,8 +49,23 @@ const RegisterForm = observer(() => {
       return;
     }
 
+    if (!secretWord.trim()) {
+      setLocalError('Please enter a secret word');
+      return;
+    }
+
+    if (secretWord.trim().length < 2) {
+      setLocalError('Secret word must be at least 2 characters');
+      return;
+    }
+
     try {
-      await authStore.register(email.trim(), password, username.trim());
+      await authStore.register(
+        email.trim(),
+        password,
+        username.trim(),
+        secretWord.trim()
+      );
     } catch {
       // Error is handled by the store
     }
@@ -133,13 +149,32 @@ const RegisterForm = observer(() => {
         />
       </div>
 
+      <div className="mb-4">
+        <label className="block text-gray-700 text-sm font-medium mb-2">
+          Secret Word
+        </label>
+        <input
+          type="text"
+          value={secretWord}
+          onChange={(e) => {
+            setSecretWord(e.target.value);
+            setLocalError('');
+            authStore.clearError();
+          }}
+          placeholder="A word only you know"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+          autoComplete="off"
+        />
+        <p className="text-gray-500 text-xs mt-1">Pick a secret word to help reset your password if you forget it. Don't share it with anyone!</p>
+      </div>
+
       {displayError && (
         <p className="text-red-500 text-sm mb-4">{displayError}</p>
       )}
 
       <button
         type="submit"
-        disabled={authStore.isLoading || !email.trim() || !username.trim() || !password || !confirmPassword}
+        disabled={authStore.isLoading || !email.trim() || !username.trim() || !password || !confirmPassword || !secretWord.trim()}
         className="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {authStore.isLoading ? 'Creating account...' : 'Create Account'}

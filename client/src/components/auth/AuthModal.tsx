@@ -2,21 +2,29 @@ import { useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
-import OTPRequestForm from './OTPRequestForm';
-import OTPForm from './OTPForm';
+import ForgotPasswordForm from './ForgotPasswordForm';
 import { authStore } from '../../stores/AuthStore';
 
-type AuthView = 'login' | 'register' | 'otp-request';
+type AuthView = 'login' | 'register' | 'forgot-password';
 
 const AuthModal = observer(() => {
   const [view, setView] = useState<AuthView>('login');
 
-  // If OTP was sent, show OTP verification
-  if (authStore.otpSent) {
+  // Forgot password flow
+  if (view === 'forgot-password') {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl">
-          <OTPForm onBack={() => authStore.resetOTPFlow()} />
+          <h2 className="text-2xl font-bold mb-2 text-gray-800">
+            Reset Password
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Recover access to your account
+          </p>
+          <ForgotPasswordForm onBack={() => {
+            setView('login');
+            authStore.clearError();
+          }} />
         </div>
       </div>
     );
@@ -31,7 +39,6 @@ const AuthModal = observer(() => {
         <p className="text-gray-600 mb-6">
           {view === 'login' && 'Sign in to continue'}
           {view === 'register' && 'Create an account to get started'}
-          {view === 'otp-request' && 'Sign in with a one-time code'}
         </p>
 
         {/* Tab navigation */}
@@ -65,12 +72,14 @@ const AuthModal = observer(() => {
         </div>
 
         {view === 'login' && (
-          <LoginForm onOTPClick={() => setView('otp-request')} />
+          <LoginForm
+            onForgotPassword={() => {
+              setView('forgot-password');
+              authStore.clearError();
+            }}
+          />
         )}
         {view === 'register' && <RegisterForm />}
-        {view === 'otp-request' && (
-          <OTPRequestForm onBack={() => setView('login')} />
-        )}
       </div>
     </div>
   );

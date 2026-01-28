@@ -3,10 +3,10 @@ import { observer } from 'mobx-react-lite';
 import { authStore } from '../../stores/AuthStore';
 
 interface LoginFormProps {
-  onOTPClick: () => void;
+  onForgotPassword: () => void;
 }
 
-const LoginForm = observer(({ onOTPClick }: LoginFormProps) => {
+const LoginForm = observer(({ onForgotPassword }: LoginFormProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -44,7 +44,7 @@ const LoginForm = observer(({ onOTPClick }: LoginFormProps) => {
         />
       </div>
 
-      <div className="mb-4">
+      <div className="mb-2">
         <label className="block text-gray-700 text-sm font-medium mb-2">
           Password
         </label>
@@ -61,6 +61,16 @@ const LoginForm = observer(({ onOTPClick }: LoginFormProps) => {
         />
       </div>
 
+      <div className="mb-4 text-right">
+        <button
+          type="button"
+          onClick={onForgotPassword}
+          className="text-sm text-blue-500 hover:text-blue-600"
+        >
+          Forgot password?
+        </button>
+      </div>
+
       {authStore.error && (
         <p className="text-red-500 text-sm mb-4">{authStore.error}</p>
       )}
@@ -71,23 +81,6 @@ const LoginForm = observer(({ onOTPClick }: LoginFormProps) => {
         className="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {authStore.isLoading ? 'Signing in...' : 'Sign In'}
-      </button>
-
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-gray-300"></div>
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-white text-gray-500">or</span>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={onOTPClick}
-        className="w-full border border-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-      >
-        Sign in with email code
       </button>
     </form>
   );

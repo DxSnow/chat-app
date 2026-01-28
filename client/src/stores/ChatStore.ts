@@ -29,12 +29,6 @@ export interface Conversation {
   createdAt: Date;
 }
 
-export interface User {
-  _id: string;
-  displayName: string;
-  email: string;
-}
-
 class ChatStore {
   messages: Message[] = [];
   isConnected: boolean = false;
@@ -48,10 +42,8 @@ class ChatStore {
 
   // Conversation state
   conversations: Conversation[] = [];
-  activeConversation: Conversation | null = null; // null = public chat
-  availableUsers: User[] = [];
+  activeConversation: Conversation | null = null;
   isLoadingConversations: boolean = false;
-  isLoadingUsers: boolean = false;
 
   constructor() {
     makeAutoObservable(this);
@@ -81,7 +73,7 @@ class ChatStore {
   // Get chat title for the current conversation
   get activeChatTitle(): string {
     if (!this.activeConversation) {
-      return 'Public Chat';
+      return 'Select a conversation';
     }
     return this.activeConversationPartner?.displayName || 'Private Chat';
   }
@@ -160,20 +152,16 @@ class ChatStore {
         }
 
         // Check if message belongs to active conversation
-        const isPrivateMessage = data.messageType === 'private';
         const isForActiveConversation = this.activeConversation
-          ? data.conversationId === this.activeConversation._id
-          : !isPrivateMessage; // Public messages only when in public chat
+          && data.conversationId === this.activeConversation._id;
 
         if (isForActiveConversation) {
           this.addMessage(data);
         }
 
-        // Refresh conversations list if it's a private message (to update lastMessage)
+        // Refresh conversations list to update lastMessage
         // Use silent refresh to avoid re-renders that cause input focus loss
-        if (isPrivateMessage) {
-          this.loadConversations(true);
-        }
+        this.loadConversations(true);
       };
 
       this.ws.onerror = (error) => {
@@ -232,6 +220,12 @@ class ChatStore {
       return;
     }
 
+    // Must have an active conversation to send a message
+    if (!this.activeConversation) {
+      console.error('No conversation selected');
+      return;
+    }
+
     const message: Message = {
       id: `msg-${Date.now()}`,
       content,
@@ -242,9 +236,9 @@ class ChatStore {
       color: this.colorSharingMode === 'shared' ? this.currentColor : undefined,
       imageUrl,
       hasImage: !!imageUrl,
-      // Add conversation info for private messages
-      conversationId: this.activeConversation?._id,
-      messageType: this.activeConversation ? 'private' : 'public',
+      // All messages are private now
+      conversationId: this.activeConversation._id,
+      messageType: 'private',
     };
 
     this.ws.send(JSON.stringify(message));
@@ -326,17 +320,21 @@ class ChatStore {
       return;
     }
 
-    try {
-      // Load from the appropriate endpoint based on active conversation
-      const endpoint = this.activeConversation
-        ? `${config.apiUrl}/api/conversations/${this.activeConversation._id}/messages`
-        : `${config.apiUrl}/api/messages`;
+    // No conversation selected - nothing to load
+    if (!this.activeConversation) {
+      this.setMessages([]);
+      return;
+    }
 
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${authStore.token}`,
-        },
-      });
+    try {
+      const response = await fetch(
+        `${config.apiUrl}/api/conversations/${this.activeConversation._id}/messages`,
+        {
+          headers: {
+            'Authorization': `Bearer ${authStore.token}`,
+          },
+        }
+      );
 
       if (response.ok) {
         const messages = await response.json();
@@ -393,44 +391,14 @@ class ChatStore {
     }
   }
 
-  // Load available users for starting new conversations
-  async loadUsers() {
-    if (!authStore.token) {
-      return;
-    }
-
-    this.isLoadingUsers = true;
-
-    try {
-      const response = await fetch(`${config.apiUrl}/api/users`, {
-        headers: {
-          'Authorization': `Bearer ${authStore.token}`,
-        },
-      });
-
-      if (response.ok) {
-        const users = await response.json();
-        runInAction(() => {
-          this.availableUsers = users;
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load users:', error);
-    } finally {
-      runInAction(() => {
-        this.isLoadingUsers = false;
-      });
-    }
-  }
-
-  // Select a conversation (or null for public chat)
+  // Select a conversation
   async selectConversation(conversation: Conversation | null) {
     this.activeConversation = conversation;
     this.messages = []; // Clear current messages
     await this.loadHistoryMessages(); // Load messages for this conversation
   }
 
-  // Start a new private conversation with a user
+  // Start a new private conversation with a user by their ID
   async startConversation(userId: string): Promise<Conversation | null> {
     if (!authStore.token) {
       return null;
@@ -465,6 +433,44 @@ class ChatStore {
     return null;
   }
 
+  // Find or create conversation by username
+  async findConversationByUsername(username: string): Promise<{ conversation: Conversation | null; error: string | null }> {
+    if (!authStore.token) {
+      return { conversation: null, error: 'Not authenticated' };
+    }
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/conversations/by-username`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username }),
+      });
+
+      if (response.ok) {
+        const conversation = await response.json();
+        // Add to conversations list if not already there
+        runInAction(() => {
+          const exists = this.conversations.find(c => c._id === conversation._id);
+          if (!exists) {
+            this.conversations.unshift(conversation);
+          }
+        });
+        // Select the new conversation
+        await this.selectConversation(conversation);
+        return { conversation, error: null };
+      } else {
+        const errorData = await response.json();
+        return { conversation: null, error: errorData.error || 'User not found' };
+      }
+    } catch (error) {
+      console.error('Failed to find conversation by username:', error);
+      return { conversation: null, error: 'Failed to connect to server' };
+    }
+  }
+
   disconnectWebSocket() {
     // Clear reconnection timeout
     if (this.reconnectTimeout) {
@@ -488,7 +494,6 @@ class ChatStore {
     this.messages = [];
     this.conversations = [];
     this.activeConversation = null;
-    this.availableUsers = [];
   }
 }
 
