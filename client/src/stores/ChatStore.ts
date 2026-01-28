@@ -1,4 +1,4 @@
-import { makeAutoObservable } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 import config from '../config';
 import { authStore } from './AuthStore';
 
@@ -11,6 +11,28 @@ export interface Message {
   color?: string; // Message bubble color (hex format)
   imageUrl?: string; // URL to uploaded image
   hasImage?: boolean; // Flag indicating if message has an image
+  conversationId?: string; // ID of private conversation (null = public)
+  messageType?: 'public' | 'private';
+}
+
+export interface Participant {
+  _id: string;
+  displayName: string;
+  email: string;
+}
+
+export interface Conversation {
+  _id: string;
+  participants: Participant[];
+  lastMessage?: Message;
+  lastMessageAt?: Date;
+  createdAt: Date;
+}
+
+export interface User {
+  _id: string;
+  displayName: string;
+  email: string;
 }
 
 class ChatStore {
@@ -23,6 +45,13 @@ class ChatStore {
   reconnectAttempts: number = 0;
   maxReconnectAttempts: number = 10;
   reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // Conversation state
+  conversations: Conversation[] = [];
+  activeConversation: Conversation | null = null; // null = public chat
+  availableUsers: User[] = [];
+  isLoadingConversations: boolean = false;
+  isLoadingUsers: boolean = false;
 
   constructor() {
     makeAutoObservable(this);
@@ -37,6 +66,24 @@ class ChatStore {
   // Check if user is authenticated
   get isAuthenticated() {
     return authStore.isAuthenticated;
+  }
+
+  // Get the other participant in the active private conversation
+  get activeConversationPartner(): Participant | null {
+    if (!this.activeConversation || !this.currentUser) {
+      return null;
+    }
+    return this.activeConversation.participants.find(
+      p => p._id !== this.currentUser?.id
+    ) || null;
+  }
+
+  // Get chat title for the current conversation
+  get activeChatTitle(): string {
+    if (!this.activeConversation) {
+      return 'Public Chat';
+    }
+    return this.activeConversationPartner?.displayName || 'Private Chat';
   }
 
   loadColorPreferences() {
@@ -67,6 +114,11 @@ class ChatStore {
       return;
     }
 
+    // Already connected to same URL, skip
+    if (this.ws && this.wsUrl === url && this.isConnected) {
+      return;
+    }
+
     // Store base URL for reconnection attempts
     this.wsUrl = url;
 
@@ -80,8 +132,12 @@ class ChatStore {
     }
 
     try {
-      // Close existing connection if any
+      // Close existing connection if any - nullify handlers first to prevent state changes
       if (this.ws) {
+        this.ws.onclose = null;
+        this.ws.onerror = null;
+        this.ws.onmessage = null;
+        this.ws.onopen = null;
         this.ws.close();
       }
 
@@ -103,7 +159,21 @@ class ChatStore {
           return;
         }
 
-        this.addMessage(data);
+        // Check if message belongs to active conversation
+        const isPrivateMessage = data.messageType === 'private';
+        const isForActiveConversation = this.activeConversation
+          ? data.conversationId === this.activeConversation._id
+          : !isPrivateMessage; // Public messages only when in public chat
+
+        if (isForActiveConversation) {
+          this.addMessage(data);
+        }
+
+        // Refresh conversations list if it's a private message (to update lastMessage)
+        // Use silent refresh to avoid re-renders that cause input focus loss
+        if (isPrivateMessage) {
+          this.loadConversations(true);
+        }
       };
 
       this.ws.onerror = (error) => {
@@ -172,6 +242,9 @@ class ChatStore {
       color: this.colorSharingMode === 'shared' ? this.currentColor : undefined,
       imageUrl,
       hasImage: !!imageUrl,
+      // Add conversation info for private messages
+      conversationId: this.activeConversation?._id,
+      messageType: this.activeConversation ? 'private' : 'public',
     };
 
     this.ws.send(JSON.stringify(message));
@@ -254,7 +327,12 @@ class ChatStore {
     }
 
     try {
-      const response = await fetch(`${config.apiUrl}/api/messages`, {
+      // Load from the appropriate endpoint based on active conversation
+      const endpoint = this.activeConversation
+        ? `${config.apiUrl}/api/conversations/${this.activeConversation._id}/messages`
+        : `${config.apiUrl}/api/messages`;
+
+      const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${authStore.token}`,
         },
@@ -267,7 +345,9 @@ class ChatStore {
           ...msg,
           isSelf: msg.sender === this.currentUser?.displayName,
         }));
-        this.setMessages(updatedMessages);
+        runInAction(() => {
+          this.setMessages(updatedMessages);
+        });
       } else if (response.status === 401) {
         // Token expired or invalid
         console.error('Auth token expired');
@@ -276,6 +356,113 @@ class ChatStore {
     } catch (error) {
       console.error('Failed to load history messages:', error);
     }
+  }
+
+  // Load user's conversations
+  // silent=true skips loading state updates to prevent input focus loss
+  async loadConversations(silent = false) {
+    if (!authStore.token) {
+      return;
+    }
+
+    if (!silent) {
+      this.isLoadingConversations = true;
+    }
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/conversations`, {
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const conversations = await response.json();
+        runInAction(() => {
+          this.conversations = conversations;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    } finally {
+      if (!silent) {
+        runInAction(() => {
+          this.isLoadingConversations = false;
+        });
+      }
+    }
+  }
+
+  // Load available users for starting new conversations
+  async loadUsers() {
+    if (!authStore.token) {
+      return;
+    }
+
+    this.isLoadingUsers = true;
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/users`, {
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const users = await response.json();
+        runInAction(() => {
+          this.availableUsers = users;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    } finally {
+      runInAction(() => {
+        this.isLoadingUsers = false;
+      });
+    }
+  }
+
+  // Select a conversation (or null for public chat)
+  async selectConversation(conversation: Conversation | null) {
+    this.activeConversation = conversation;
+    this.messages = []; // Clear current messages
+    await this.loadHistoryMessages(); // Load messages for this conversation
+  }
+
+  // Start a new private conversation with a user
+  async startConversation(userId: string): Promise<Conversation | null> {
+    if (!authStore.token) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/conversations`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ participantId: userId }),
+      });
+
+      if (response.ok) {
+        const conversation = await response.json();
+        // Add to conversations list if not already there
+        runInAction(() => {
+          const exists = this.conversations.find(c => c._id === conversation._id);
+          if (!exists) {
+            this.conversations.unshift(conversation);
+          }
+        });
+        // Select the new conversation
+        await this.selectConversation(conversation);
+        return conversation;
+      }
+    } catch (error) {
+      console.error('Failed to start conversation:', error);
+    }
+    return null;
   }
 
   disconnectWebSocket() {
@@ -299,6 +486,9 @@ class ChatStore {
   // Clear messages when logging out
   clearMessages() {
     this.messages = [];
+    this.conversations = [];
+    this.activeConversation = null;
+    this.availableUsers = [];
   }
 }
 

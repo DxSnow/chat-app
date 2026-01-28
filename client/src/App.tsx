@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import ChatWindow from './components/ChatWindow';
 import AuthModal from './components/auth/AuthModal';
@@ -7,9 +7,13 @@ import { authStore } from './stores/AuthStore';
 import config from './config';
 
 const App = observer(() => {
+  const isConnectedRef = useRef(false);
+
   useEffect(() => {
-    // Only connect if user is authenticated
-    if (authStore.isAuthenticated) {
+    // Only connect if user is authenticated and not already connected
+    if (authStore.isAuthenticated && !isConnectedRef.current) {
+      isConnectedRef.current = true;
+
       // Load history messages
       chatStore.loadHistoryMessages();
 
@@ -17,11 +21,19 @@ const App = observer(() => {
       chatStore.connectWebSocket(config.wsUrl);
     }
 
-    // Cleanup on unmount
+    // Disconnect when logging out
+    if (!authStore.isAuthenticated && isConnectedRef.current) {
+      isConnectedRef.current = false;
+      chatStore.disconnectWebSocket();
+    }
+  }, [authStore.isAuthenticated]);
+
+  // Cleanup only on unmount
+  useEffect(() => {
     return () => {
       chatStore.disconnectWebSocket();
     };
-  }, [authStore.isAuthenticated]);
+  }, []);
 
   if (!authStore.isAuthenticated) {
     return <AuthModal />;

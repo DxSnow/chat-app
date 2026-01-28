@@ -16,6 +16,10 @@ require('dotenv').config();
 const authRouter = require('./routes/auth');
 const { authMiddleware, verifyWebSocketToken } = require('./middleware/auth');
 
+// Model imports
+const User = require('./models/User');
+const Conversation = require('./models/Conversation');
+
 const app = new Koa();
 const router = new Router();
 
@@ -63,6 +67,8 @@ const messageSchema = new mongoose.Schema({
   color: String, // Message bubble color (hex format)
   imageUrl: String, // URL path to uploaded image
   hasImage: { type: Boolean, default: false }, // Flag to indicate if message has image
+  conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' }, // null = public chat
+  messageType: { type: String, enum: ['public', 'private'], default: 'public' },
 });
 
 const Message = mongoose.model('Message', messageSchema);
@@ -87,7 +93,14 @@ router.get('/api/messages', authMiddleware, async (ctx) => {
       ctx.body = [];
       return;
     }
-    const messages = await Message.find()
+    // Only return public messages (no conversationId)
+    const messages = await Message.find({
+      $or: [
+        { conversationId: null },
+        { conversationId: { $exists: false } },
+        { messageType: 'public' }
+      ]
+    })
       .sort({ timestamp: -1 })
       .limit(100);
     ctx.body = messages.reverse();
@@ -224,6 +237,124 @@ router.post('/api/upload', upload.single('image'), async (ctx) => {
   }
 });
 
+// GET /api/users - List all users (for starting conversations)
+router.get('/api/users', authMiddleware, async (ctx) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      ctx.body = [];
+      return;
+    }
+    const users = await User.find({ _id: { $ne: ctx.state.user.userId } })
+      .select('displayName email')
+      .sort({ displayName: 1 });
+    ctx.body = users;
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to fetch users' };
+  }
+});
+
+// GET /api/conversations - Get user's private conversations
+router.get('/api/conversations', authMiddleware, async (ctx) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      ctx.body = [];
+      return;
+    }
+    const conversations = await Conversation.find({
+      participants: ctx.state.user.userId
+    })
+      .populate('participants', 'displayName email')
+      .populate('lastMessage')
+      .sort({ lastMessageAt: -1 });
+    ctx.body = conversations;
+  } catch (error) {
+    console.error('Error fetching conversations:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to fetch conversations' };
+  }
+});
+
+// POST /api/conversations - Create or get existing conversation with another user
+router.post('/api/conversations', authMiddleware, async (ctx) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      ctx.status = 503;
+      ctx.body = { error: 'Database not connected' };
+      return;
+    }
+
+    const { participantId } = ctx.request.body;
+
+    if (!participantId) {
+      ctx.status = 400;
+      ctx.body = { error: 'participantId is required' };
+      return;
+    }
+
+    // Can't start conversation with yourself
+    if (participantId === ctx.state.user.userId) {
+      ctx.status = 400;
+      ctx.body = { error: 'Cannot start a conversation with yourself' };
+      return;
+    }
+
+    // Check if the other user exists
+    const otherUser = await User.findById(participantId);
+    if (!otherUser) {
+      ctx.status = 404;
+      ctx.body = { error: 'User not found' };
+      return;
+    }
+
+    const conversation = await Conversation.findOrCreateConversation(
+      ctx.state.user.userId,
+      participantId
+    );
+
+    ctx.body = conversation;
+  } catch (error) {
+    console.error('Error creating conversation:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to create conversation' };
+  }
+});
+
+// GET /api/conversations/:id/messages - Get messages for a specific conversation
+router.get('/api/conversations/:id/messages', authMiddleware, async (ctx) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      ctx.body = [];
+      return;
+    }
+
+    const conversationId = ctx.params.id;
+
+    // Verify user is a participant in this conversation
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      participants: ctx.state.user.userId
+    });
+
+    if (!conversation) {
+      ctx.status = 404;
+      ctx.body = { error: 'Conversation not found' };
+      return;
+    }
+
+    const messages = await Message.find({ conversationId })
+      .sort({ timestamp: -1 })
+      .limit(100);
+
+    ctx.body = messages.reverse();
+  } catch (error) {
+    console.error('Error fetching conversation messages:', error);
+    ctx.status = 500;
+    ctx.body = { error: 'Failed to fetch messages' };
+  }
+});
+
 // Serve uploaded images
 const serve = require('koa-static');
 app.use(serve(path.join(__dirname)));
@@ -238,7 +369,10 @@ const server = http.createServer(app.callback());
 // WebSocket Server
 const wss = new WebSocketServer({ server });
 
-const clients = new Set();
+// Map of userId -> WebSocket for routing private messages
+const clients = new Map();
+// Also keep a Set for broadcasting public messages (multiple connections per user possible)
+const allClients = new Set();
 
 wss.on('connection', (ws, req) => {
   // Extract token from query string
@@ -264,7 +398,10 @@ wss.on('connection', (ws, req) => {
   ws.displayName = decoded.displayName;
 
   console.log(`User connected: ${decoded.displayName} (${decoded.email})`);
-  clients.add(ws);
+
+  // Store in both maps
+  clients.set(decoded.userId, ws);
+  allClients.add(ws);
 
   ws.on('message', async (data) => {
     try {
@@ -274,9 +411,11 @@ wss.on('connection', (ws, req) => {
       message.userId = ws.userId;
       message.sender = ws.displayName;
 
-      console.log('Received message from', ws.displayName);
+      const isPrivate = message.conversationId && message.messageType === 'private';
+      console.log(`Received ${isPrivate ? 'private' : 'public'} message from ${ws.displayName}`);
 
       // Save to database if MongoDB is connected
+      let savedMessage = null;
       if (mongoose.connection.readyState === 1) {
         const dbMessage = new Message({
           ...message,
@@ -284,18 +423,43 @@ wss.on('connection', (ws, req) => {
           sender: ws.displayName,
           timestamp: new Date(message.timestamp),
         });
-        await dbMessage.save();
+        savedMessage = await dbMessage.save();
+
+        // Update conversation's lastMessage if it's a private message
+        if (isPrivate && message.conversationId) {
+          await Conversation.findByIdAndUpdate(message.conversationId, {
+            lastMessage: savedMessage._id,
+            lastMessageAt: savedMessage.timestamp
+          });
+        }
       }
 
-      // Broadcast to all clients except sender
-      clients.forEach((client) => {
-        if (client !== ws && client.readyState === 1) {
-          client.send(JSON.stringify({
-            ...message,
-            isSelf: false,
-          }));
+      if (isPrivate) {
+        // Private message: only send to the other participant
+        const conversation = await Conversation.findById(message.conversationId);
+        if (conversation) {
+          const otherParticipantId = conversation.participants.find(
+            p => p.toString() !== ws.userId
+          );
+          const otherClient = clients.get(otherParticipantId?.toString());
+          if (otherClient && otherClient.readyState === 1) {
+            otherClient.send(JSON.stringify({
+              ...message,
+              isSelf: false,
+            }));
+          }
         }
-      });
+      } else {
+        // Public message: broadcast to all clients except sender
+        allClients.forEach((client) => {
+          if (client !== ws && client.readyState === 1) {
+            client.send(JSON.stringify({
+              ...message,
+              isSelf: false,
+            }));
+          }
+        });
+      }
     } catch (error) {
       console.error('Error processing message:', error);
     }
@@ -303,7 +467,8 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => {
     console.log(`User disconnected: ${ws.displayName}`);
-    clients.delete(ws);
+    clients.delete(ws.userId);
+    allClients.delete(ws);
   });
 
   ws.on('error', (error) => {
