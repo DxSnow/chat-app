@@ -309,6 +309,72 @@ router.post('/forgot-password/verify-email', requireDatabase, loginLimiter, asyn
   };
 });
 
+// GET /api/auth/admin/users - List all registered users (admin only)
+router.get('/admin/users', requireDatabase, async (ctx) => {
+  const adminToken = ctx.headers['x-admin-token'];
+  const expectedToken = process.env.ADMIN_TOKEN;
+
+  if (!expectedToken) {
+    ctx.status = 503;
+    ctx.body = { error: 'Admin functionality not configured' };
+    return;
+  }
+
+  if (!adminToken || adminToken !== expectedToken) {
+    ctx.status = 401;
+    ctx.body = { error: 'Invalid admin token' };
+    return;
+  }
+
+  const users = await User.find({}, 'email displayName createdAt lastLogin').sort({ createdAt: -1 });
+
+  ctx.body = {
+    total: users.length,
+    maxUsers: MAX_USERS,
+    users: users.map(u => ({
+      id: u._id,
+      email: u.email,
+      displayName: u.displayName,
+      createdAt: u.createdAt,
+      lastLogin: u.lastLogin,
+    })),
+  };
+});
+
+// DELETE /api/auth/admin/users/:id - Delete a user (admin only)
+router.delete('/admin/users/:id', requireDatabase, async (ctx) => {
+  const adminToken = ctx.headers['x-admin-token'];
+  const expectedToken = process.env.ADMIN_TOKEN;
+
+  if (!expectedToken) {
+    ctx.status = 503;
+    ctx.body = { error: 'Admin functionality not configured' };
+    return;
+  }
+
+  if (!adminToken || adminToken !== expectedToken) {
+    ctx.status = 401;
+    ctx.body = { error: 'Invalid admin token' };
+    return;
+  }
+
+  const { id } = ctx.params;
+
+  const user = await User.findById(id);
+  if (!user) {
+    ctx.status = 404;
+    ctx.body = { error: 'User not found' };
+    return;
+  }
+
+  await User.findByIdAndDelete(id);
+
+  ctx.body = {
+    success: true,
+    message: `User ${user.email} has been deleted`,
+  };
+});
+
 // POST /api/auth/forgot-password/reset - Reset password using secret word
 router.post('/forgot-password/reset', requireDatabase, loginLimiter, async (ctx) => {
   const { email, secretWord, newPassword } = ctx.request.body;
