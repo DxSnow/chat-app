@@ -35,9 +35,19 @@ const ColorPicker = observer(({ onClose, position }: ColorPickerProps) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
+  // Apply color changes immediately for live preview
+  const handleColorChange = (color: string) => {
+    setTempColor(color);
+    chatStore.setColor(color);
+  };
+
+  const handleModeChange = (mode: 'local' | 'shared') => {
+    setTempMode(mode);
+    chatStore.setColorSharingMode(mode);
+  };
+
   const handleApply = () => {
-    chatStore.setColor(tempColor);
-    chatStore.setColorSharingMode(tempMode);
+    // Color and mode are already applied, just close
     onClose();
   };
 
@@ -68,7 +78,7 @@ const ColorPicker = observer(({ onClose, position }: ColorPickerProps) => {
           {COLOR_PRESETS.map((color) => (
             <button
               key={color}
-              onClick={() => setTempColor(color)}
+              onClick={() => handleColorChange(color)}
               className={`w-10 h-10 sm:w-8 sm:h-8 rounded-full border-2 transition ${
                 tempColor === color ? 'border-gray-800 scale-110' : 'border-gray-300'
               }`}
@@ -84,7 +94,7 @@ const ColorPicker = observer(({ onClose, position }: ColorPickerProps) => {
         <input
           type="color"
           value={tempColor}
-          onChange={(e) => setTempColor(e.target.value)}
+          onChange={(e) => handleColorChange(e.target.value)}
           className="w-full h-10 rounded cursor-pointer"
         />
       </div>
@@ -105,7 +115,7 @@ const ColorPicker = observer(({ onClose, position }: ColorPickerProps) => {
         <p className="text-xs text-gray-600 mb-2">Visibility</p>
         <div className="flex gap-2">
           <button
-            onClick={() => setTempMode('local')}
+            onClick={() => handleModeChange('local')}
             className={`flex-1 px-3 py-3 sm:py-2 rounded-lg text-sm font-medium transition touch-manipulation ${
               tempMode === 'local'
                 ? 'bg-blue-500 text-white'
@@ -115,7 +125,7 @@ const ColorPicker = observer(({ onClose, position }: ColorPickerProps) => {
             Only me
           </button>
           <button
-            onClick={() => setTempMode('shared')}
+            onClick={() => handleModeChange('shared')}
             className={`flex-1 px-3 py-3 sm:py-2 rounded-lg text-sm font-medium transition touch-manipulation ${
               tempMode === 'shared'
                 ? 'bg-blue-500 text-white'

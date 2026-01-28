@@ -66,18 +66,16 @@ const MessageBubble = observer(({ message }: MessageBubbleProps) => {
     setShowColorPicker(true);
   };
 
-  // Determine the background color for self messages
+  // Determine the background color for messages
   const getBackgroundColor = () => {
-    if (!message.isSelf) return undefined;
-
-    // If in local mode, always use current color from store (allows changing past messages)
-    // If in shared mode, use the message's saved color (or current if not set)
-    if (chatStore.colorSharingMode === 'local') {
+    if (message.isSelf) {
+      // For own messages, always use current color from store (allows changing past messages)
+      // This works in both local and shared modes
       return chatStore.currentColor;
+    } else {
+      // For other users' messages, show their color if they shared it
+      return message.color || undefined;
     }
-
-    // For shared mode: use message color if available, otherwise use current color
-    return message.color || chatStore.currentColor;
   };
 
   return (
@@ -90,13 +88,15 @@ const MessageBubble = observer(({ message }: MessageBubbleProps) => {
         className={`max-w-[70%] md:max-w-[60%] rounded-lg px-4 py-2 ${
           message.isSelf
             ? 'text-white cursor-pointer'
-            : 'bg-white text-gray-800 shadow-sm'
+            : getBackgroundColor()
+              ? 'text-white shadow-sm'
+              : 'bg-white text-gray-800 shadow-sm'
         }`}
-        style={message.isSelf ? { backgroundColor: getBackgroundColor() } : undefined}
+        style={{ backgroundColor: getBackgroundColor() }}
       >
         <div
           className={`text-xs font-semibold mb-1 ${
-            message.isSelf ? 'text-white/80' : 'text-gray-600'
+            message.isSelf || getBackgroundColor() ? 'text-white/80' : 'text-gray-600'
           }`}
         >
           {message.sender}
@@ -118,7 +118,7 @@ const MessageBubble = observer(({ message }: MessageBubbleProps) => {
         {message.content && <div className="break-words">{message.content}</div>}
         <div
           className={`text-xs mt-1 ${
-            message.isSelf ? 'text-white/70' : 'text-gray-400'
+            message.isSelf || getBackgroundColor() ? 'text-white/70' : 'text-gray-400'
           }`}
         >
           {formatTime(message.timestamp)}

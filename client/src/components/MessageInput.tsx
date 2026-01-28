@@ -25,9 +25,9 @@ const MessageInput = observer(() => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB');
+    // Validate file size (15MB limit)
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Image size must be less than 15MB');
       return;
     }
 
@@ -44,9 +44,25 @@ const MessageInput = observer(() => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to upload image:', error);
-      alert('Failed to upload image. Please try again.');
+
+      // Provide specific error messages
+      let errorMessage = 'Failed to upload image.\n\n';
+
+      if (error.message.includes('Server storage is full')) {
+        errorMessage += '❌ Server storage is full. Please try again later or contact the admin.';
+      } else if (error.message.includes('Not connected')) {
+        errorMessage += '❌ Not connected to server.\n\n🔄 To refresh:\n• Mobile: Pull down from top of page\n• Desktop: Press Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)';
+      } else if (error.message.includes('Network')) {
+        errorMessage += '❌ Network error. Please check your internet connection and try again.';
+      } else if (error.message.includes('timeout')) {
+        errorMessage += '❌ Upload timed out. Your connection might be slow. Try a smaller image or better WiFi.';
+      } else {
+        errorMessage += `❌ ${error.message || 'Unknown error'}\n\n🔄 Try refreshing:\n• Mobile: Pull down from top of page\n• Desktop: Press Ctrl+Shift+R`;
+      }
+
+      alert(errorMessage);
     } finally {
       setUploading(false);
     }
