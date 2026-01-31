@@ -14,10 +14,36 @@ const MessageBubble = observer(({ message }: MessageBubbleProps) => {
   const bubbleRef = useRef<HTMLDivElement>(null);
 
   const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
+    const messageDate = new Date(date);
+    const today = new Date();
+    const isToday = messageDate.toDateString() === today.toDateString();
+    const isThisYear = messageDate.getFullYear() === today.getFullYear();
+
+    const timeStr = messageDate.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });
+
+    if (isToday) {
+      return timeStr;
+    }
+
+    // Show date for older messages
+    if (isThisYear) {
+      const dateStr = messageDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      });
+      return `${dateStr}, ${timeStr}`;
+    }
+
+    // Show year for messages from previous years
+    const dateStr = messageDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return `${dateStr}, ${timeStr}`;
   };
 
   const handleDoubleClick = () => {
